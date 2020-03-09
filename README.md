@@ -1,16 +1,18 @@
 # imgrb
-Pure Ruby library for reading and writing png and apng (animated png)
+Pure Ruby library for reading and writing png and apng (animated png). Current API may change (not stable).
 ## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, etc.).
 
 ## FEATURES
 Reads all standard types of png files, namely:
+
 * Grayscale
 * Truecolor
 * Indexed color
 * Grayscale with alpha
 * Truecolor with alpha
 * Interlaced
+
 for any applicable bit-depth.
 
 Also has full support for the apng format and limited support for bmp.
@@ -21,6 +23,7 @@ Supports creating and writing png, apng, and bmp images.
 
 ### Loading a png file, and resaving it:
 ```ruby
+
   image = Imgrb::Image.new("img.png")
   image.save("new_img.png")
   #image.save("new_img.bmp") resaves as .bmp
@@ -28,12 +31,14 @@ Supports creating and writing png, apng, and bmp images.
 
 ### Loading only the metadata of a png file and printing a report:
 ```ruby
+
   image = Imgrb::Image.new("img.png", :only_metadata => true)
   image.report
 ```
 
 ### Splitting an rgb-image into its three component channels, creating a new bgr-image and saving it. Also inverting the red channel and saving it as a grayscale png:
 ```ruby
+
   image = Imgrb::Image.new("rgb_image.png")
   image_r = image.get_channel(0)
   image_g = image.get_channel(1)
@@ -56,11 +61,13 @@ In this example we will generate a simple animated png, save it and read it back
 * Simple case:
 Assuming an array of images
 ```ruby
+
   frames_of_animation = [...]
 ```
 that represent the frames of the animation, one may generate an animated png by a few lines of code:
 
 ```ruby
+
   animation = frames_of_animation[0]
   frames_of_animation[1..-1].each do
     |frame|
@@ -83,6 +90,7 @@ For illustration purposes we will iteratively generate a Sierpinski triangle as 
 We first set up a black 400x400 grayscale image with an alpha channel at full opacity
 
 ```ruby
+
   width = 400
   height = 400
 
@@ -93,11 +101,12 @@ We first set up a black 400x400 grayscale image with an alpha channel at full op
 Then we set up some variables that control the number of frames generated and the size of the triangle
 
 ```ruby
+
   #Iterated Sierpinski triangle generates the sequence
   #used for the animation.
   rng = Random.new(0) #Seeded for reproducibility
   frames = 24*8 #Number of frames of animation
-  points_per_frame = 200 #Number of points to generate per frame
+  points_per_frame = 600 #Number of points to generate per frame
 
   #Vertices of the triangle
   p0 = [width/2, 0]
@@ -112,6 +121,7 @@ Finally, we generate each frame, add it to the animation and
 at the end, save the animated png. Note the use of the blend operation :over used when pushing the frame data.
 
 ```ruby
+
   #Generating frames
   frames.times do
     #Create the next frame in the sequence
@@ -160,11 +170,15 @@ at the end, save the animated png. Note the use of the blend operation :over use
 ```
 
 An animated png may be read in the same manner as a regular png:
+
 ```ruby
+
   animated_image = Imgrb::Image.new("animated_sierpinski.png")
 ```
 This will act as a regular, static image, with values reflecting the first frame of the animated png. However, we can check to see that animated_image is indeed animated:
+
 ```ruby
+
   if animated_image.animated?
     puts "An animated image!"
   else
@@ -172,15 +186,21 @@ This will act as a regular, static image, with values reflecting the first frame
   end
 ```
 To read values from any given frame, one may call
+
 ```ruby
+
   animated_image.animate_step
 ```
 the desired number of times. For example, if frame 10 is of interest
+
 ```ruby
+
   10.times{animated_image.animate_step}
 ```
 will yield the 10th frame, assuming we started from frame 0 (i.e. the initial frame). To get to an earlier frame one may call animate_step until the animation loops around. It is also possible to use jump_to_frame to skip to a given frame number, i.e.
+
 ```ruby
+
   animated_image.jump_to_frame(10)
 ```
 will set the current frame of animated_image to 10.
@@ -196,6 +216,7 @@ Png-files consist of a collection of chunks identified by a four-letter (ISO 646
 In the following example, we add an ancillary, private, safe-to-copy chunk: "auDi". This chunk contains audio along with some properties. Namely, the length of the audio clip in milliseconds (4 bytes), the initial delay before the sound should be played (by some hypothetical application) in ms (4 bytes), the delay before the sound is repeated (4 bytes), and the number of times to loop the clip (4 bytes). The format of the audio data itself is not specified.
 
 ```ruby
+
   #Define a chunk class
   class ChunkauDi
     include Imgrb::Chunks::AbstractChunk, #Normally included
@@ -280,7 +301,9 @@ In the following example, we add an ancillary, private, safe-to-copy chunk: "auD
 ```
 
 Reading any png with an auDi-chunk will now add a ChunkauDi instance to the ancillary_chunks (as long as ChunkauDi is registered):
+
 ```ruby
+
   img_with_auDi_chunk = Imgrb::Image.new("black_white_ticking.png")
   #Since there may be multiple chunks of the same name, chunks of the same type
   #are stored in a hash associated with the key given by the chunk type (as a
@@ -289,9 +312,11 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
 ```
 
 
-
-
-
-
 ## REQUIREMENTS:
 * Ruby >= 1.9.2 (may work with earlier versions)
+
+
+## TODO:
+* Clean up tests, write more and add to repo
+* Work on refactoring
+* Add support for gif
