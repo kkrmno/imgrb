@@ -61,9 +61,9 @@ Supports creating and writing png, apng, and bmp images.
 
 Image credit: NASA
 
-<br>![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
 
-Overlaid transparent foreground on top of background.
+After setting the alpha channel of the mars image to 180, overlaying the transparent foreground on top of the background yields:
+<br>![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
 
 
 ```ruby
