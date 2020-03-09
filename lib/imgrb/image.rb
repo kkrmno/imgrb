@@ -21,7 +21,7 @@ module Imgrb
     #* :skip_crc, to skip crc checks
     #
     #Ways to call new:
-    #* new(img), where img is another img instance
+    #* new(img_0, ..., img_n), where each img_i is and Image instance with one channel, each img_i has the same size, and the number of input images determine the number of channels (max 4).
     #* new(width, height, color), where width and height are integers, and color is the color used to fill the image (number of channels determined by color.size)
     #* new(path), where path is a string pointing to a png, apng, or bmp file.
     #* new(string, :from_string => true), where string contains the bytes of an image.
@@ -48,7 +48,7 @@ module Imgrb
             c_mode = Imgrb::PngConst::TRUECOLOR
             max_channels = options[1].channels if options[1].channels > max_channels
             if options[2].is_a? Image
-              @header = Imgrb::PngConst::TRUECOLOR_ALPHA
+              c_mode = Imgrb::PngConst::TRUECOLOR_ALPHA
               max_channels = options[2].channels if options[2].channels > max_channels
             end
           end

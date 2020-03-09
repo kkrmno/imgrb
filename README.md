@@ -22,6 +22,7 @@ Supports creating and writing png, apng, and bmp images.
 ## SYNOPSIS
 
 ### Loading a png file, and resaving it:
+
 ```ruby
 
   image = Imgrb::Image.new("img.png")
@@ -30,6 +31,7 @@ Supports creating and writing png, apng, and bmp images.
 ```
 
 ### Loading only the metadata of a png file and printing a report:
+
 ```ruby
 
   image = Imgrb::Image.new("img.png", :only_metadata => true)
@@ -37,6 +39,7 @@ Supports creating and writing png, apng, and bmp images.
 ```
 
 ### Splitting an rgb-image into its three component channels, creating a new bgr-image and saving it. Also inverting the red channel and saving it as a grayscale png:
+
 ```ruby
 
   image = Imgrb::Image.new("rgb_image.png")
@@ -44,10 +47,7 @@ Supports creating and writing png, apng, and bmp images.
   image_g = image.get_channel(1)
   image_b = image.get_channel(2)
 
-  image_bgr = image.copy
-  image_bgr.set_channel(0, image_b)
-  #Green channel still in the middle
-  image_bgr.set_channel(2, image_r)
+  image_bgr = Imgrb::Image.new(image_b, image_g, image_r)
   image_bgr.save_png("bgr_image.png")
 
   #Multiply by -1 to invert values. Add 255 to shift into expected range (0..255)
@@ -55,11 +55,31 @@ Supports creating and writing png, apng, and bmp images.
   image_r_inverted.save_png("r_image_inv.png")
 ```
 
+### Overlay transparent image on background image
+<br>![background](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_earth_small.png)
+<br>![foreground](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_mars_small.png)
+Image credit: NASA
+<br>![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
+
+
+```ruby
+image_bg = Imgrb::Image.new("nasa_earth_small.png")
+image_fg = Imgrb::Image.new("nasa_mars_small.png")
+
+alpha = 180 #Out of 255
+alpha_channel = Imgrb::Image.new(image_fg.width, image_fg.height, alpha)
+image_fg.set_channel(3, alpha_channel)
+image_alpha_overlay = image_fg.alpha_over(image_bg)
+
+image_alpha_overlay.save("earth_mars_overlay.png")
+```
+
 ### Creating, saving, and reading an animated png (apng):
 In this example we will generate a simple animated png, save it and read it back.
 
 * Simple case:
 Assuming an array of images
+
 ```ruby
 
   frames_of_animation = [...]
