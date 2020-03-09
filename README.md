@@ -57,9 +57,13 @@ Supports creating and writing png, apng, and bmp images.
 
 ### Overlay transparent image on background image
 <br>![background](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_earth_small.png)
-<br>![foreground](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_mars_small.png)
+![foreground](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_mars_small.png)
+
 Image credit: NASA
+
 <br>![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
+
+Overlaid transparent foreground on top of background.
 
 
 ```ruby
