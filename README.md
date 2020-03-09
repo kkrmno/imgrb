@@ -27,8 +27,10 @@ Supports creating and writing png, apng, and bmp images.
 ```
 
 ### Loading only the metadata of a png file and printing a report:
+```ruby
   image = Imgrb::Image.new("img.png", :only_metadata => true)
   image.report
+```
 
 ### Splitting an rgb-image into its three component channels, creating a new bgr-image and saving it. Also inverting the red channel and saving it as a grayscale png:
 ```ruby
@@ -51,7 +53,7 @@ Supports creating and writing png, apng, and bmp images.
 ### Creating, saving, and reading an animated png (apng):
 In this example we will generate a simple animated png, save it and read it back.
 
-*Simple case:
+* Simple case:
 Assuming an array of images
 ```ruby
   frames_of_animation = [...]
@@ -68,7 +70,7 @@ that represent the frames of the animation, one may generate an animated png by 
 
 That is, we pick out the first frame of the animation, then iteratively add the following frames using push_frame. Note that this may result in a rather large file if there are many large component frames. Also note that neither the width nor the height of subsequent frames should exceed those of the first frame. Smaller subsequent frames are allowed (overlaying starting from top left).
 
-*Complex case:
+* Complex case:
 In many cases, the file size of the animation can be kept smaller by making use of the blend and dispose operations, as well as the x and y offsets. The following shows such an example:
 
 
