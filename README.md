@@ -1,9 +1,9 @@
-= imgrb
+# imgrb
 Pure Ruby library for reading and writing png and apng (animated png)
-== Description
+## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, etc.).
 
-== FEATURES
+## FEATURES
 Reads all standard types of png files, namely:
 * Grayscale
 * Truecolor
@@ -17,20 +17,20 @@ Also has full support for the apng format and limited support for bmp.
 
 Supports creating and writing png, apng, and bmp images.
 
-== SYNOPSIS
+## SYNOPSIS
 
-=== Loading a png file, and resaving it:
+### Loading a png file, and resaving it:
 ```ruby
   image = Imgrb::Image.new("img.png")
   image.save("new_img.png")
   #image.save("new_img.bmp") resaves as .bmp
 ```
 
-=== Loading only the metadata of a png file and printing a report:
+### Loading only the metadata of a png file and printing a report:
   image = Imgrb::Image.new("img.png", :only_metadata => true)
   image.report
 
-=== Splitting an rgb-image into its three component channels, creating a new bgr-image and saving it. Also inverting the red channel and saving it as a grayscale png:
+### Splitting an rgb-image into its three component channels, creating a new bgr-image and saving it. Also inverting the red channel and saving it as a grayscale png:
 ```ruby
   image = Imgrb::Image.new("rgb_image.png")
   image_r = image.get_channel(0)
@@ -48,10 +48,10 @@ Supports creating and writing png, apng, and bmp images.
   image_r_inverted.save_png("r_image_inv.png")
 ```
 
-=== Creating, saving, and reading an animated png (apng):
+### Creating, saving, and reading an animated png (apng):
 In this example we will generate a simple animated png, save it and read it back.
 
--Simple case:
+*Simple case:
 Assuming an array of images
 ```ruby
   frames_of_animation = [...]
@@ -68,13 +68,13 @@ that represent the frames of the animation, one may generate an animated png by 
 
 That is, we pick out the first frame of the animation, then iteratively add the following frames using push_frame. Note that this may result in a rather large file if there are many large component frames. Also note that neither the width nor the height of subsequent frames should exceed those of the first frame. Smaller subsequent frames are allowed (overlaying starting from top left).
 
--Complex case:
+*Complex case:
 In many cases, the file size of the animation can be kept smaller by making use of the blend and dispose operations, as well as the x and y offsets. The following shows such an example:
 
 
 For illustration purposes we will iteratively generate a Sierpinski triangle as shown in the figure below:
 
-[[https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png]]
+<br>![apng output](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png)
 
 
 
@@ -183,7 +183,7 @@ will yield the 10th frame, assuming we started from frame 0 (i.e. the initial fr
 ```
 will set the current frame of animated_image to 10.
 
-=== Defining own chunk type:
+### Defining own chunk type:
 Png-files consist of a collection of chunks identified by a four-letter (ISO 646) name. Depending on the case of these four letters, different properties are determined. In short:
 
 * The first letter is upper case if it is a critical chunk (i.e. necessary for displaying the contents of the file) and lower case if ancillary (i.e. not strictly necessary for decoding the image data, meaning unknown ancillary chunks can be ignored when decoding).
@@ -291,5 +291,5 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
 
 
 
-== REQUIREMENTS:
+## REQUIREMENTS:
 * Ruby >= 1.9.2 (may work with earlier versions)
