@@ -101,6 +101,27 @@ that represent the frames of the animation, one may generate an animated png by 
 
 That is, we pick out the first frame of the animation, then iteratively add the following frames using push_frame. Note that this may result in a rather large file if there are many large component frames. Also note that neither the width nor the height of subsequent frames should exceed those of the first frame. Smaller subsequent frames are allowed (overlaying starting from top left).
 
+To save the apng, simply save as a png
+
+```ruby
+
+  animation.save("animated.png")
+```
+
+Reading the apng also works the same as for a normal png:
+
+```ruby
+
+  animation_r = Imgrb::Image.new("animated.png")
+```
+
+Stepping forward one frame can be done by calling animate_step:
+
+```ruby
+
+  animation_r.animate_step
+```
+
 * Complex case:
 In many cases, the file size of the animation can be kept smaller by making use of the blend and dispose operations, as well as the x and y offsets. The following shows such an example:
 
