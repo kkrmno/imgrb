@@ -3,6 +3,8 @@ Pure Ruby library for reading and writing png and apng (animated png). Current A
 ## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, etc.).
 
+There is also support for user defined ancillary chunks. Further down in this document, an example of embedding audio data in a png-file defining a new ancillary chunk is shown.
+
 ## FEATURES
 Reads all standard types of png files, namely:
 
@@ -358,7 +360,7 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
 
 
 ## REQUIREMENTS:
-* Ruby >= 1.9.2 (may work with earlier versions)
+* Ruby >= 1.9.3 (may work with earlier versions)
 
 
 ## TODO:

@@ -441,12 +441,48 @@ module Imgrb
       end
     end
 
+    # ##
+    # #Do something to each row
+    # def each &block
+    #   @bitmap.rows.each(&block)
+    #   #Image.new(@bitmap.rows.each{|row| yield row.clone}, header.image_type)
+    #   #self
+    # end
+
+
+    ##
+    #Do something to each pixel
+    def each &block
+      Enumerator.new {
+        |pixel|
+        c = header.channels
+        @bitmap.rows.each do
+          |row|
+          n_pixels = row.size/c
+          n_pixels.times do
+            |index|
+            if  c == 1
+              pixel << row[index*c]
+            else
+              pixel << row[index*c..(index+1)*c-1]
+            end
+          end
+        end
+        self
+      }.each(&block)
+    end
+
     ##
     #Do something to each row
-    def each &block
-      @bitmap.rows.each(&block)
-      #Image.new(@bitmap.rows.each{|row| yield row.clone}, header.image_type)
-      #self
+    def each_row &block
+      Enumerator.new {
+        |row|
+        rows.each do
+          |r|
+          row << r
+        end
+        self
+      }.each(&block)
     end
 
 
@@ -471,6 +507,18 @@ module Imgrb
         end
         jump_to_frame(old_frame_nr)
       }.each(&block)
+    end
+
+    ##
+    #Alias of each
+    def each_pixel &block
+      each(&block)
+    end
+
+    ##
+    #Iterate over each pixel and index. Equivalent to each.with_index
+    def each_pixel_with_index &block
+      each.with_index(&block)
     end
 
 
@@ -759,34 +807,6 @@ module Imgrb
     end
 
     ##
-    #Iterate over each pixel
-    def each_pixel
-      c = header.channels
-      @bitmap.rows.each do
-        |row|
-        n_pixels = row.size/c
-        n_pixels.times do
-          |index|
-          yield row[index*c..(index+1)*c-1]
-        end
-      end
-    end
-
-    ##
-    #Iterate over each pixel and index
-    def each_pixel_with_index
-      c = header.channels
-      @bitmap.rows.each_with_index do
-        |row, r_index|
-        n_pixels = row.size/c
-        n_pixels.times do
-          |c_index|
-          yield [row[c_index*c..(c_index+1)*c-1], r_index, c_index]
-        end
-      end
-    end
-
-    ##
     #Return a copy of the rows.
     def rows
       @bitmap.rows.collect{|row| row.clone}
@@ -1007,15 +1027,35 @@ module Imgrb
 
 
     ##
-    #Get pixel at coordinate +x+, +y+. Note that +y+ is 0 at the top of the image
-    #and increases as the rows descend horizontally. The +x+ coordinate increases
-    #from left to right.
-    def get_pixel(x, y)
+    #Get pixel at coordinate +x+, +y+ using get_pixel(x,y). Note that +y+ is 0
+    #at the top of the image and increases as the rows descend horizontally.
+    #The +x+ coordinate increases from left to right.
+    #
+    #Alternatively get_pixel(x,y,c) gives the value of channel +c+ at +x+, +y+.
+    def get_pixel(x, y, *chan)
+      raise ArgumentError, "wrong number of arguments (given #{chan.size + 2}, expected 2 or 3)." if chan.size > 1
       raise IndexError, "Coordinate x = #{x} too large for image. Maximum #{width - 1}" if x > width - 1
       raise IndexError, "Coordinate x = #{x} must be >= 0." if x < 0
       raise IndexError, "Coordinate y = #{y} too large for image. Maximum #{height - 1}" if y > height - 1
       raise IndexError, "Coordinate y = #{y} must be >= 0." if y < 0
-      @bitmap.get_pixel(x, y)
+
+      if chan.size == 1
+        r_channel = chan[0]
+        raise IndexError, "Channel c = #{r_channel} must be >= 0" if r_channel < 0
+        raise IndexError, "Channel c = #{r_channel} must be < #{channels} (#channels)" if r_channel >= channels
+      else
+        r_channel = -1
+      end
+
+      c = channels
+      if c == 1
+        val = @bitmap.rows[y][x]
+      else
+        val = @bitmap.rows[y][x*c..x*c+c-1]
+        val = val[r_channel] if r_channel != -1
+      end
+
+      val
     end
 
     ##
@@ -1025,15 +1065,43 @@ module Imgrb
     #without alpha, pxl is a single integer. If there are more than one channel,
     #pxl is an array with as many elements as there are channels (array of size
     #1 is also acceptable for grayscale images)
-    def set_pixel(x, y, pxl)
+    #
+    #Alternatively set_pixel(x, y, c, value) sets pnly the value of a specific
+    #channel +c+ at coordinate (+x+, +y+) to +value+.
+    def set_pixel(x, y, *chan, pxl)
+      raise ArgumentError, "wrong number of arguments (given #{chan.size + 3}, expected 3 or 4)." if chan.size > 1
       raise IndexError, "Coordinate x = #{x} too large for image. Maximum #{width - 1}" if x > width - 1
       raise IndexError, "Coordinate x = #{x} must be >= 0." if x < 0
       raise IndexError, "Coordinate y = #{y} too large for image. Maximum #{height - 1}" if y > height - 1
       raise IndexError, "Coordinate y = #{y} must be >= 0." if y < 0
+
+
       pxl = Array(pxl)
-      channels.times do
-        |i|
-        @bitmap.rows[y][x*channels+i] = pxl[i]
+
+      if chan.size == 1
+        r_channel = chan[0]
+        raise IndexError, "Channel c = #{r_channel} must be >= 0" if r_channel < 0
+        raise IndexError, "Channel c = #{r_channel} must be < #{channels} (#channels)" if r_channel >= channels
+        raise ArgumentError, "wrong pixel size (given #{pxl.size}, expected 1)." if pxl.size != 1
+      else
+        r_channel = -1 #No specified channel
+        raise ArgumentError, "wrong pixel size (given #{pxl.size}, expected #{channels})." if pxl.size != channels
+      end
+
+
+      if r_channel == -1
+        channels.times do
+          |i|
+          @bitmap.rows[y][x*channels+i] = pxl[i]
+        end
+      else
+        @bitmap.rows[y][x*channels+r_channel] = pxl[0]
+      end
+
+      if pxl.size == 1
+        pxl[0]
+      else
+        pxl
       end
       #For png. Affects which ancillary chunks can be copied over.
       #header.making_critical_changes!
