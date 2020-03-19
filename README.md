@@ -79,6 +79,8 @@ To add text as metadata to an image (png/apng), you may use `add_text`:
 ```
 
 For a full list of predefined keywords and more details, see the png specification: https://www.w3.org/TR/2003/REC-PNG-20031110/#11textinfo
+These predefined keywords should be used where appropriate, but if no predefined keyword fits, you can use any 1-79 byte long character string without
+leading or trailing spaces using only printable Latin-1 characters and spaces. The `text` string should also use the Latin-1 character set.
 
 The `add_text` method expects Latin-1 (ISO-8859-1) characters. If you need to store UTF-8 encoded text, use `add_international_text` instead.
 See details on the iTXt chunk here: https://www.w3.org/TR/2003/REC-PNG-20031110/#11iTXt
