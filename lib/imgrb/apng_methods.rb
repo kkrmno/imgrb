@@ -77,11 +77,11 @@ module Imgrb
         bg_color = [0, 0, 0, 0]
         background_image = Imgrb::Image.new(:color => bg_color, :width => bg_w, :height => bg_h, :color_type => bg_color_type)
         temp_image = Imgrb::Image.new(image.rows)
-        temp_image.paste(y_offset, x_offset, background_image)
+        temp_image.paste(x_offset, y_offset, background_image)
         return temp_image.rows
       elsif operation == :previous #APNG_DISPOSE_OP_PREVIOUS
         temp_image = Imgrb::Image.new(image.rows)
-        temp_image.paste(y_offset, x_offset, previous_frame)
+        temp_image.paste(x_offset, y_offset, previous_frame)
         return temp_image.rows
       else
         raise Imgrb::Exceptions::AnimationError, "Unknown dispose operation for "\
@@ -97,16 +97,16 @@ module Imgrb
       y_offset = control.y_offset
 
       if operation == :source #APNG_BLEND_OP_SOURCE
-        image.paste(y_offset, x_offset, next_frame)
+        image.paste(x_offset, y_offset, next_frame)
       elsif operation == :over #APNG_BLEND_OP_OVER
 
         w = next_frame.width
         h = next_frame.height
 
-        cut_out_bg = image.copy(y_offset, x_offset, w, h)
+        cut_out_bg = image.copy(x_offset, y_offset, w, h)
         cut_out_bg.alpha_under(next_frame)
 
-        image.paste(y_offset, x_offset, cut_out_bg)
+        image.paste(x_offset, y_offset, cut_out_bg)
         return
       else
         raise Imgrb::Exceptions::AnimationError, "Unknown blend operation for "\

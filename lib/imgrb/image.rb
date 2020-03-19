@@ -232,7 +232,7 @@ module Imgrb
           @bitmap.rows = Imgrb::ApngMethods::dispose_frame(self, @previous_frame, previous_frame_control)
 
           #Remember state before blending current frame, so that disposing of it next animation step is possible.
-          @previous_frame = copy(frame_control.y_offset, frame_control.x_offset, frame_image.width, frame_image.height)
+          @previous_frame = copy(frame_control.x_offset, frame_control.y_offset, frame_image.width, frame_image.height)
           #Blend in current frame
           # @bitmap.rows = Imgrb::ApngMethods::blend_frame(self, frame_image, frame_control)
           Imgrb::ApngMethods::blend_frame(self, frame_image, frame_control)
@@ -523,12 +523,11 @@ module Imgrb
 
 
     ##
-    #Returns an image instance containing a copy of the pixels specified. NOTE:
-    #ROW, COL, i.e., NOT X, Y!
+    #Returns an image instance containing a copy of the pixels specified.
     #Does not copy ancillary chunks etc. For apng, this means a copy is no
     #longer animated. Should maybe change this. Careful with unsafe chunks in
     #that case.
-    def copy(row = 0, col = 0, width_ = width, height_ = height)
+    def copy(col = 0, row = 0, width_ = width, height_ = height)
       rows = []
       height_.times do
         |y|
@@ -544,13 +543,13 @@ module Imgrb
     #corner and the bottom right corner of the window to be copied.
     #Returns the copied window as a new image.
     def copy_window(x0, y0, x1, y1)
-      copy(y0, x0, x1-x0, y1-y0)
+      copy(x0, y0, x1-x0, y1-y0)
     end
 
     ##
-    #Replace all pixels starting at row, col, by the pixels in the given image.
+    #Replace all pixels starting at +col+, +row+ by the pixels in the given image.
     #Modifies self!
-    def paste(row, col, image)
+    def paste(col, row, image)
       if header.channels != image.header.channels
         raise Exceptions::ImageError, "Trying to paste image with "\
                                       "#{image.header.channels} channels "\
@@ -563,6 +562,7 @@ module Imgrb
         |r|
         @bitmap.rows[row + r][col*header.channels..(rows[r].size + col*header.channels - 1)] = rows[r]
       end
+      return self
     end
 
     ##
@@ -595,7 +595,7 @@ module Imgrb
         w.times do
           |col|
 
-          fg_alpha = foreground_image.get_channel(channels-1, row, col)
+          fg_alpha = foreground_image.get_pixel(col, row, channels-1)
           if fg_alpha == 0
             next
           elsif fg_alpha == 255
@@ -735,7 +735,7 @@ module Imgrb
     #* a given channel as an Image, or
     #* a given row of a given channel as an array, or
     #* a given pixel of a given channel as an array/scalar
-    def get_channel(c, row = nil, col = nil)
+    def get_channel(c, col = nil, row = nil)
       if c < 0 || c >= channels
         raise ArgumentError, "Channel #{c} does not exist!"
       end
