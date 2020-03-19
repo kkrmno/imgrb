@@ -523,7 +523,8 @@ module Imgrb
 
 
     ##
-    #Returns an image instance containing a copy of the pixels specified.
+    #Returns an image instance containing a copy of the pixels specified. NOTE:
+    #ROW, COL, i.e., NOT X, Y!
     #Does not copy ancillary chunks etc. For apng, this means a copy is no
     #longer animated. Should maybe change this. Careful with unsafe chunks in
     #that case.
@@ -535,6 +536,15 @@ module Imgrb
       end
 
       Image.new(rows, @header.image_type, @header.bit_depth)
+    end
+
+    ##
+    #More intuitive method for copying a part of an image (cf. +copy+).
+    #Specify two coordinates, +x0+, +y0+, +x1+, +y1+, that identify the top left
+    #corner and the bottom right corner of the window to be copied.
+    #Returns the copied window as a new image.
+    def copy_window(x0, y0, x1, y1)
+      copy(y0, x0, x1-x0, y1-y0)
     end
 
     ##
@@ -781,6 +791,28 @@ module Imgrb
     end
 
     ##
+    #Returns a new image instance converted to grayscale
+    #
+    #Uses: 0.299 * R + 0.587 * G + 0.114 * B
+    def to_gray
+      if channels == 1 || channels == 2
+        return copy
+      elsif channels == 3 || channels == 4
+        r = get_channel(0)
+        g = get_channel(1)
+        b = get_channel(2)
+
+        gray = (r*0.299 + g*0.587 + b*0.114).round
+        if channels == 4
+          gray = Imgrb::Image.new(gray, get_channel(3))
+        end
+
+        return gray
+      end
+
+    end
+
+    ##
     #Convert to rgb. Modifies self!
     def to_rgb
       @bitmap.to_rgb
@@ -946,9 +978,9 @@ module Imgrb
 
 
 
-        fctl_data0 = create_fcTL_chunk_data(0, self, x_offset, y_offset,
+        fctl_data0 = create_fcTL_chunk_data(0, self, 0, 0,
                                             delay_num, delay_den,
-                                            dispose_op, blend_op)
+                                            :none, :source)
         fctl_data1 = create_fcTL_chunk_data(1, img, x_offset, y_offset,
                                             delay_num, delay_den,
                                             dispose_op, blend_op)
@@ -957,7 +989,6 @@ module Imgrb
         #First frame has fcTL before IDAT Chunk (meaning IDAT is first frame of
         #animation).
         fctl_chunk0 = Imgrb::Chunks::ChunkfcTL.new(fctl_data0, :after_IHDR)
-                                                      #Maybe just :after_IDAT?
         fctl_chunk1 = Imgrb::Chunks::ChunkfcTL.new(fctl_data1, :after_IDAT)
         fdat_chunk1 = Imgrb::Chunks::ChunkfdAT.new(fdat_data1, :after_IDAT)
 
@@ -1034,25 +1065,22 @@ module Imgrb
     #Alternatively get_pixel(x,y,c) gives the value of channel +c+ at +x+, +y+.
     def get_pixel(x, y, *chan)
       raise ArgumentError, "wrong number of arguments (given #{chan.size + 2}, expected 2 or 3)." if chan.size > 1
-      raise IndexError, "Coordinate x = #{x} too large for image. Maximum #{width - 1}" if x > width - 1
-      raise IndexError, "Coordinate x = #{x} must be >= 0." if x < 0
-      raise IndexError, "Coordinate y = #{y} too large for image. Maximum #{height - 1}" if y > height - 1
-      raise IndexError, "Coordinate y = #{y} must be >= 0." if y < 0
 
       if chan.size == 1
         r_channel = chan[0]
-        raise IndexError, "Channel c = #{r_channel} must be >= 0" if r_channel < 0
-        raise IndexError, "Channel c = #{r_channel} must be < #{channels} (#channels)" if r_channel >= channels
       else
-        r_channel = -1
+        r_channel = :all
       end
+
+      is_outside, err_str = out_of_bounds?(x, y, r_channel)
+      raise IndexError, err_str if is_outside
 
       c = channels
       if c == 1
         val = @bitmap.rows[y][x]
       else
         val = @bitmap.rows[y][x*c..x*c+c-1]
-        val = val[r_channel] if r_channel != -1
+        val = val[r_channel] if r_channel != :all
       end
 
       val
@@ -1070,26 +1098,22 @@ module Imgrb
     #channel +c+ at coordinate (+x+, +y+) to +value+.
     def set_pixel(x, y, *chan, pxl)
       raise ArgumentError, "wrong number of arguments (given #{chan.size + 3}, expected 3 or 4)." if chan.size > 1
-      raise IndexError, "Coordinate x = #{x} too large for image. Maximum #{width - 1}" if x > width - 1
-      raise IndexError, "Coordinate x = #{x} must be >= 0." if x < 0
-      raise IndexError, "Coordinate y = #{y} too large for image. Maximum #{height - 1}" if y > height - 1
-      raise IndexError, "Coordinate y = #{y} must be >= 0." if y < 0
-
 
       pxl = Array(pxl)
 
       if chan.size == 1
         r_channel = chan[0]
-        raise IndexError, "Channel c = #{r_channel} must be >= 0" if r_channel < 0
-        raise IndexError, "Channel c = #{r_channel} must be < #{channels} (#channels)" if r_channel >= channels
         raise ArgumentError, "wrong pixel size (given #{pxl.size}, expected 1)." if pxl.size != 1
       else
-        r_channel = -1 #No specified channel
+        r_channel = :all #No specified channel
         raise ArgumentError, "wrong pixel size (given #{pxl.size}, expected #{channels})." if pxl.size != channels
       end
 
+      is_outside, err_str = out_of_bounds?(x, y, r_channel)
+      raise IndexError, err_str if is_outside
 
-      if r_channel == -1
+
+      if r_channel == :all
         channels.times do
           |i|
           @bitmap.rows[y][x*channels+i] = pxl[i]
@@ -1132,6 +1156,9 @@ module Imgrb
       end
 
       if file_type == "png"
+        #Currently saving apng as paletted is a problem (the fdAT chunks need to
+        #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
+        compression_level = 0 if apng?
         save_png(filename, compression_level, *options)
       else
         save_bmp(filename)
@@ -1372,12 +1399,12 @@ module Imgrb
         #print "NUMBER OF COLORS: "
         if !@only_metadata
           puts "PALETTABLE?"
-          now = Time.now
+          #now = Time.now
           puts PngMethods::palettable?(self, 3000)
           #puts "NUMBER OF COLORS: "
           #puts count_colors(@bitmap.rows, has_alpha?, 256)
-          print "TIME TO COUNT: "
-          puts Time.now - now
+          #print "TIME TO COUNT: "
+          #puts Time.now - now
         end
 
         puts "CHUNKS (IN ORDER):"
@@ -1451,9 +1478,29 @@ module Imgrb
         @skip_crc = options[:skip_crc]
         @from_string = options[:from_string]
       else
+        @only_metadata = !!opt.index(:only_metadata)
         @skip_ancillary = !!opt.index(:skip_ancillary)
         @skip_crc = !!opt.index(:skip_crc)
       end
+    end
+
+
+    def out_of_bounds?(x, y, c = :all)
+      outside = false
+      error_str = ""
+
+      error_str = "Coordinate x = #{x} too large for image. Maximum #{width - 1}" if x > width - 1
+      error_str = "Coordinate x = #{x} must be >= 0." if x < 0
+      error_str = "Coordinate y = #{y} too large for image. Maximum #{height - 1}" if y > height - 1
+      error_str = "Coordinate y = #{y} must be >= 0." if y < 0
+
+      unless c == :all
+        error_str = "Channel c = #{c} must be >= 0" if c < 0
+        error_str = "Channel c = #{c} must be < #{channels} (#channels)" if c >= channels
+      end
+
+      outside = true if error_str.size > 0
+      return [outside, error_str]
     end
 
 

@@ -23,6 +23,8 @@ Supports creating and writing png, apng, and bmp images.
 
 ## SYNOPSIS
 
+See also the wiki for additional examples: https://github.com/kkrmno/imgrb/wiki
+
 ### Loading a png file, and resaving it:
 
 ```ruby
