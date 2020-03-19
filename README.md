@@ -1,5 +1,7 @@
 # imgrb
 Pure Ruby library for reading and writing png and apng (animated png). Current API may change (not stable).
+
+Example usage below. See also the wiki for additional examples: https://github.com/kkrmno/imgrb/wiki
 ## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, etc.).
 
@@ -22,8 +24,6 @@ Also has full support for the apng format and limited support for bmp.
 Supports creating and writing png, apng, and bmp images.
 
 ## SYNOPSIS
-
-See also the wiki for additional examples: https://github.com/kkrmno/imgrb/wiki
 
 ### Loading a png file, and resaving it:
 
