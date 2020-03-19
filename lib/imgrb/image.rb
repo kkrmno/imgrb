@@ -319,7 +319,7 @@ module Imgrb
           sum_image = Image.new(:color => [255]*channels, :width => width, :height => height, :color_type => header.image_type)
           @bitmap.rows.each_with_index do
             |row, index|
-            other_row = image.rows[index]
+            other_row = image.bitmap.rows[index]
             sum_image[index] = row.collect.with_index{|c, c_i| c + other_row[c_i]}
           end
           return sum_image
@@ -352,7 +352,7 @@ module Imgrb
           prod_image = Image.new(:color => [255]*channels, :width => width, :height => height, :color_type => header.image_type)
           @bitmap.rows.each_with_index do
             |row, index|
-            other_row = image.rows[index]
+            other_row = image.bitmap.rows[index]
             prod_image[index] = row.collect.with_index{|c, c_i| c * other_row[c_i]}
           end
           return prod_image
@@ -378,7 +378,7 @@ module Imgrb
           prod_image = Image.new(:color => [255]*channels, :width => width, :height => height, :color_type => header.image_type)
           @bitmap.rows.each_with_index do
             |row, index|
-            other_row = image.rows[index]
+            other_row = image.bitmap.rows[index]
             prod_image[index] = row.collect.with_index{|c, c_i| c ** other_row[c_i]}
           end
           return prod_image
@@ -400,6 +400,19 @@ module Imgrb
     def /(image)
       self * image**(-1)
     end
+
+    ##
+    #Returns a new image where each channel contains the absolute values of the
+    #corresponding channel in the old image.
+    def abs
+      abs_img = self.copy
+      abs_img.bitmap.rows.each do
+        |r|
+        r.collect!{|e| e.abs}
+      end
+      return abs_img
+    end
+
 
     ##
     #  image[row_idx]
