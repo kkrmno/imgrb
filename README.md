@@ -5,7 +5,7 @@ Example usage below. See also the wiki for additional examples: https://github.c
 ## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, etc.).
 
-There is also support for user defined ancillary chunks. Further down in this document, an example of embedding audio data in a png-file defining a new ancillary chunk is shown.
+There is also support for user-defined ancillary chunks. Further down in this document, an example of embedding audio as metadata in a png-file by defining a new ancillary chunk is shown. In a similar manner, other types of metadata can, if so desired, be added inside user-defined ancillary chunks.
 
 ## FEATURES
 Reads all standard types of png files, namely:
@@ -58,6 +58,30 @@ Supports creating and writing png, apng, and bmp images.
   image_r_inverted = image_r*(-1) + 255
   image_r_inverted.save_png("r_image_inv.png")
 ```
+
+### Adding text data
+To add text as metadata to an image (png/apng), you may use `add_text`:
+
+```ruby
+  image = Imgrb::Image.new(100,100,0)
+  keyword = "Title"
+  text = "Black Square"
+  image.add_text(keyword, text)
+
+  keyword = "Comment"
+  text = "This is an example of adding text data to a png image."
+  image.add_text(keyword, text)
+
+  keyword = "Comment"
+  long_text = "[A VERY LONG STRING OF TEXT...]"
+  #This stores a compressed version of the text
+  image.add_text(keyword, text, true)
+```
+
+For a full list of predefined keywords and more details, see the png specification: https://www.w3.org/TR/2003/REC-PNG-20031110/#11textinfo
+
+The `add_text` method expects Latin-1 (ISO-8859-1) characters. If you need to store UTF-8 encoded text, use `add_international_text` instead.
+See details on the iTXt chunk here: https://www.w3.org/TR/2003/REC-PNG-20031110/#11iTXt
 
 ### Overlay transparent image on background image
 <br>![background](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_earth_small.png)
