@@ -454,15 +454,6 @@ module Imgrb
       end
     end
 
-    # ##
-    # #Do something to each row
-    # def each &block
-    #   @bitmap.rows.each(&block)
-    #   #Image.new(@bitmap.rows.each{|row| yield row.clone}, header.image_type)
-    #   #self
-    # end
-
-
     ##
     #Do something to each pixel
     def each &block
@@ -534,6 +525,141 @@ module Imgrb
       each.with_index(&block)
     end
 
+    def transpose
+      transpose_img = Imgrb::Image.new(height, width, [0]*channels)
+      height.times do
+        |y|
+        width.times do
+          |x|
+          transpose_img.set_pixel(y, x, self.get_pixel(x, y))
+        end
+      end
+      return transpose_img
+    end
+
+    ##
+    #Convolves image with kernel (also an Image instance) and returns result as a new image.
+    #The kernel must have either 1 channel or equal the number of channels as the image.
+    #
+    #Default border behavior is :zero, meaning padding with zeros. All options:
+    #* +:zero+,        pad with zeros
+    #* +:symmetric+,   pad by mirroring pixels past the border
+    #* +:replicate+,   pad by extending image with closest border pixel
+    #* +:circular+,    pad as if the image is periodic
+    #
+    #TODO: Refactor
+    def convolve(kernel, border_behavior = :zero)
+      if kernel.channels != self.channels && kernel.channels != 1
+        raise ArgumentError, "Kernel must either be flat (i.e. 1 channel), or same depth as image (i.e. #{self.channels} channel(s))"
+      end
+
+      border_options = [:zero, :symmetric, :replicate, :circular]
+
+      if !border_options.include?(border_behavior)
+        raise ArgumentError, "Specified border behavior: '#{border_behavior}' not allowed. Must be one of: '#{border_options.join("', '")}'."
+      end
+
+      #Faster special case for grayscale images when convolving with 1D kernels
+      if self.channels == 1
+        if kernel.width == 1
+          return convolve_col(kernel, border_behavior)
+        elsif kernel.height == 1
+          return convolve_row(kernel, border_behavior)
+        end
+      end
+
+      conv_img = Imgrb::Image.new(self.width, self.height, [0]*self.channels)
+      conv_img_rows = conv_img.bitmap.rows
+
+      my_rows = self.bitmap.rows
+      my_width = self.width
+      my_width_less1 = self.width - 1
+      my_height = self.height
+      my_height_less1 = self.height-1
+      num_my_channels = self.channels
+
+      kernel_rows = kernel.bitmap.rows
+      kernel_width = kernel.width
+      kernel_width_less1 = kernel.width - 1
+      kernel_height = kernel.height
+      kernel_height_less1 = kernel.height - 1
+      num_kernel_channels = kernel.channels
+
+      kx_off = kernel.width/2
+      ky_off = kernel.height/2
+      x_range = ((-kx_off)...(self.width-kx_off))
+      y_range = ((-ky_off)...(self.height-ky_off))
+
+      num_my_channels.times do |c|
+
+        if num_kernel_channels > 1
+          #Faster than using entire bitmap of width x height x channels kernel,
+          #unless kernel is very large (such that get_channel takes too long).
+          kernel_rows = kernel.get_channel(c).bitmap.rows
+        end
+
+        y_range.each_with_index do |y_off_ky, y|
+          x_range.each_with_index do |x_off_kx, x|
+
+            #Conv at x, y:
+            #===================================================================
+            conv_value = 0
+
+            kernel_height.times do |ky|
+              y_offset = y_off_ky+ky
+
+              #Handle border pixels (y):
+              #-------------------------------------------------
+              if y_offset < 0 || y_offset >= my_height
+                if border_behavior == :zero
+                  next
+                elsif border_behavior == :symmetric
+                  y_offset = get_symmetric_idx(y_offset, my_height_less1)
+                elsif border_behavior == :replicate
+                  y_offset = y_offset < 0 ? 0 : my_height_less1
+                elsif border_behavior == :circular
+                  y_offset = y_offset % my_height
+                end
+              end
+              #-------------------------------------------------
+
+              my_row = my_rows[y_offset]
+              kernel_row = kernel_rows[kernel_height_less1 - ky]
+
+              kernel_width.times do |kx|
+                x_offset = x_off_kx+kx
+
+                #Handle border pixels (x):
+                #-----------------------------------------------
+                if x_offset < 0 || x_offset >= my_width
+                  if border_behavior == :zero
+                    next
+                  elsif border_behavior == :symmetric
+                    x_offset = get_symmetric_idx(x_offset, my_width_less1)
+                  elsif border_behavior == :replicate
+                    x_offset = x_offset < 0 ? 0 : my_width_less1
+                  elsif border_behavior == :circular
+                    x_offset = x_offset % my_width
+                  end
+                end
+                #-----------------------------------------------
+                img_val = my_row[x_offset*num_my_channels + c]
+                kernel_val = kernel_row[kernel_width_less1 - kx]
+
+                conv_value = conv_value + kernel_val * img_val
+              end
+            end
+
+            conv_img_rows[y][x*num_my_channels + c] = conv_value
+            #===================================================================
+
+          end
+        end
+
+      end
+
+      return conv_img
+    end
 
     ##
     #Returns an image instance containing a copy of the pixels specified.
@@ -904,6 +1030,7 @@ module Imgrb
 
     ##
     #Rounds all values to integer. Modifies self!
+    #FIXME: Change name to "round!" and add "round" method that modifies a copy
     def round
       @bitmap.rows.collect! do
         |row|
@@ -917,6 +1044,7 @@ module Imgrb
 
     ##
     #Takes ceiling of all values. Modifies self!
+    #FIXME: Change name to "ceil!" and add "ceil" method that modifies a copy
     def ceil
       @bitmap.rows.collect! do
         |row|
@@ -930,6 +1058,7 @@ module Imgrb
 
     ##
     #Takes floor of all values. Modifies self!
+    #FIXME: Change name to "floor!" and add "floor" method that modifies a copy
     def floor
       @bitmap.rows.collect! do
         |row|
@@ -1546,6 +1675,162 @@ module Imgrb
                                 #SKIP THE IDAT CHUNK NAME + OLD LENGTH INFO
       data = [seq_num].pack("N")+idat_bytes[8..-1]
     end
+
+
+    #======================================================================
+    #Convolution helpers. Hacky stuff to improve performance for 1D kernels
+    #======================================================================
+
+    ##
+    #Convolve self with 1D kernel (row). The kernel should have height or width 1.
+    def convolve_row(kernel_1d_img, border_behavior)
+      conv_img = Imgrb::Image.new(self.width, self.height, 0)
+
+      kernel_values = kernel_1d_img.bitmap.rows.flatten.reverse
+
+      my_rows = self.bitmap.rows
+      conv_img_rows = conv_img.bitmap.rows
+
+      kx_off = kernel_values.size/2
+
+      my_width_less1 = self.width - 1
+      my_width = self.width
+      kernel_size = kernel_values.size
+
+      x_range = ((-kx_off)...(self.width-kx_off))
+      y_range = (0...self.height)
+
+      y_range.each do |y|
+        my_row = my_rows[y]
+        x_range.each do |x|
+
+          #===================================================================
+          #Ugly, but fast (relatively speaking)
+          conv_value = 0
+          idx = 0
+          while idx < kernel_size
+            x_off = x + idx
+            replicate_idx = check_border_condition(x_off, my_width_less1)
+
+            #If inside border, replicate_idx is 1
+            if replicate_idx == 1
+              conv_value += kernel_values[idx] * my_row[x_off]
+            #Do nothing if padding with 0
+            #elsif border_behavior == :zero
+              #conv_value += 0
+            elsif border_behavior == :replicate
+              conv_value += kernel_values[idx] * my_row[replicate_idx]
+            elsif border_behavior == :symmetric
+              x_off = get_symmetric_idx(x_off, my_width_less1)
+              conv_value += kernel_values[idx] * my_row[x_off]
+            elsif border_behavior == :circular
+              conv_value += kernel_values[idx] * my_row[x_off%my_width]
+            end
+
+            idx += 1
+          end
+
+          conv_img_rows[y][x+kx_off] = conv_value
+          #===================================================================
+        end
+      end
+
+
+      return conv_img
+    end
+
+
+    ##
+    #Convolve self with 1D kernel (col). The kernel should have height or width 1
+    #
+    def convolve_col(kernel_1d_img, border_behavior)
+      conv_img = Imgrb::Image.new(self.width, self.height, 0)
+
+      kernel_values = kernel_1d_img.bitmap.rows.flatten.reverse
+
+      my_rows = self.bitmap.rows
+      conv_img_rows = conv_img.bitmap.rows
+
+      ky_off = kernel_values.size/2
+
+      my_height = self.height
+      my_height_less1 = self.height - 1
+      kernel_size = kernel_values.size
+
+      x_range = (0...self.width)
+      y_range = ((-ky_off)...(self.height-ky_off))
+
+      replicate_idx = nil
+
+      y_range.each do |y|
+        y_ky_off = y+ky_off
+        x_range.each do |x|
+
+          #===================================================================
+          #Ugly, but fast (relatively speaking)
+          conv_value = 0
+          idx = 0
+          while idx < kernel_size
+            y_off = y + idx
+
+            replicate_idx = check_border_condition(y_off, my_height_less1)
+
+            #If inside border, replicate_idx is 1
+            if replicate_idx == 1
+              conv_value += kernel_values[idx] * my_rows[y_off][x]
+            #Do nothing if padding with 0
+            #elsif border_behavior == :zero
+              #conv_value += 0
+            elsif border_behavior == :replicate
+              conv_value += kernel_values[idx] * my_rows[replicate_idx][x]
+            elsif border_behavior == :symmetric
+              y_off = get_symmetric_idx(y_off, my_height_less1)
+              conv_value += kernel_values[idx] * my_rows[y_off][x]
+            elsif border_behavior == :circular
+              conv_value += kernel_values[idx] * my_rows[y_off%my_height][x]
+            end
+
+            idx += 1
+          end
+
+          conv_img_rows[y_ky_off][x] = conv_value
+          #===================================================================
+        end
+      end
+
+
+      return conv_img
+    end
+
+    ##
+    #Returns
+    #* 1 if inside border
+    #* 0 if offset_idx is too small
+    #* -1 if offset_idx is too large
+    def check_border_condition(offset_idx, max_idx)
+      if offset_idx < 0
+        replicate_idx = 0
+      elsif offset_idx > max_idx
+        replicate_idx = -1
+      else
+        replicate_idx = 1
+      end
+      replicate_idx
+    end
+
+    ##
+    #Perform mirror reflections until the position is inside bounds.
+    #The loop is necessary to take care of values that are very far out of bounds.
+    def get_symmetric_idx(idx, max_idx)
+      until idx >= 0 && idx <= max_idx
+        idx = idx < 0 ? idx.abs : (2*max_idx - idx)
+      end
+      return idx
+    end
+
+
+    #End of convolution helpers
+    #=========================================================================
 
 
     def save_png(filename, compression_level = 0, *options)
