@@ -37,6 +37,8 @@ module Imgrb
       #  up loading of multiple images of the same format (i.e. same width,
       #  height, bit depth etc.).
 
+      raise ArgumentError, "Too many arguments (options.size + 1)!" if options.size > 3
+
       case img
       when Image
         max_channels = img.channels
@@ -69,6 +71,8 @@ module Imgrb
         set_channel(3, options[2].rows) if channels > 3
 
       when Fixnum
+        #TODO: Raise exception if too many options, e.g. Image.new(10,10,42,...,42,0)
+        #(format should be width, height, color)
         width_ = img
         height_ = options[0]
         color = Array(options[1])
@@ -80,6 +84,8 @@ module Imgrb
           @header = Imgrb::Headers::ImgrbHeader.new(width_, height_, 8, Imgrb::PngConst::TRUECOLOR)
         elsif color.size == 4
           @header = Imgrb::Headers::ImgrbHeader.new(width_, height_, 8, Imgrb::PngConst::TRUECOLOR_ALPHA)
+        else
+          raise ArgumentError, "The filling color #{color} must have between 1 and 4 channels."
         end
         row = color*width_
         image = Array.new(height_){ Array.new(row) }
@@ -341,6 +347,18 @@ module Imgrb
     #Returns new difference image
     def -(image)
       self + image * -1
+    end
+
+    ##
+    #Unary minus (negates pixel values)
+    def -@
+      self * -1
+    end
+
+    ##
+    #Unary plus (no effect). Returns a copy of self. For completeness.
+    def +@
+      self.copy
     end
 
     ##
@@ -609,6 +627,7 @@ module Imgrb
               y_offset = y_off_ky+ky
 
               #Handle border pixels (y):
+              #Maybe use fetch with block instead.
               #-------------------------------------------------
               if y_offset < 0 || y_offset >= my_height
                 if border_behavior == :zero
@@ -681,7 +700,9 @@ module Imgrb
     #Specify two coordinates, +x0+, +y0+, +x1+, +y1+, that identify the top left
     #corner and the bottom right corner of the window to be copied.
     #Returns the copied window as a new image.
+    #NO CHECKING OF BOUNDS!
     def copy_window(x0, y0, x1, y1)
+      #TODO: CHECK BOUNDS
       copy(x0, y0, x1-x0, y1-y0)
     end
 
@@ -1096,7 +1117,7 @@ module Imgrb
                    delay_num = 1, delay_den = 24,
                    dispose_op = :none, blend_op = :source)
 
-
+      #TODO: CHECK VALID INPUT ARGUMENTS, E.G. DISPOSE_OP AND BLEND_OP
       #TODO: REFACTOR!
 
       if(img.size[0] > size[0] || img.size[1] > size[1])

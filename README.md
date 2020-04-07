@@ -52,17 +52,18 @@ Supports creating and writing png, apng, and bmp images.
   image_b = image.get_channel(2)
 
   image_bgr = Imgrb::Image.new(image_b, image_g, image_r)
-  image_bgr.save_png("bgr_image.png")
+  image_bgr.save("bgr_image.png")
 
-  #Multiply by -1 to invert values. Add 255 to shift into expected range (0..255)
-  image_r_inverted = image_r*(-1) + 255
-  image_r_inverted.save_png("r_image_inv.png")
+  #Negate values. Add 255 to shift into expected range (0..255)
+  image_r_inverted = -image_r + 255
+  image_r_inverted.save("r_image_inv.png")
 ```
 
 ### Adding text data
 To add text as metadata to an image (png/apng), you may use `add_text`:
 
 ```ruby
+
   image = Imgrb::Image.new(100,100,0)
   keyword = "Title"
   text = "Black Square"
@@ -75,7 +76,7 @@ To add text as metadata to an image (png/apng), you may use `add_text`:
   keyword = "Comment"
   long_text = "[A VERY LONG STRING OF TEXT...]"
   #This stores a compressed version of the text
-  image.add_text(keyword, text, true)
+  image.add_text(keyword, long_text, true)
 ```
 
 For a full list of predefined keywords and more details, see the png specification: https://www.w3.org/TR/2003/REC-PNG-20031110/#11textinfo
@@ -98,6 +99,7 @@ After setting the alpha channel of the mars image to 180, overlaying the transpa
 
 
 ```ruby
+
 image_bg = Imgrb::Image.new("nasa_earth_small.png")
 image_fg = Imgrb::Image.new("nasa_mars_small.png")
 
@@ -373,7 +375,7 @@ In the following example, we add an ancillary, private, safe-to-copy chunk: "auD
   #Save the apng that switches between black and white every second, which
   #contains an auDi chunk describing a short repeating sound that loops every
   #second.
-  img_black_anim.save_png("black_white_ticking.png")
+  img_black_anim.save("black_white_ticking.png")
 ```
 
 Reading any png with an auDi-chunk will now add a ChunkauDi instance to the ancillary_chunks (as long as ChunkauDi is registered):
