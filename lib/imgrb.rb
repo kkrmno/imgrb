@@ -24,7 +24,7 @@
 #
 #   image = Imgrb::Image.new("img.png")
 #   p image.texts #Prints all text metadata
-#   image.save("img_new")
+#   image.save("img_new.png")
 module Imgrb
 
   # def self.load(file_name)

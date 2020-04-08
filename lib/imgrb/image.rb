@@ -962,7 +962,7 @@ module Imgrb
         g = get_channel(1)
         b = get_channel(2)
 
-        gray = (r*0.299 + g*0.587 + b*0.114).round
+        gray = (r*0.299 + g*0.587 + b*0.114).round!
         if channels == 4
           gray = Imgrb::Image.new(gray, get_channel(3))
         end
@@ -1051,8 +1051,7 @@ module Imgrb
 
     ##
     #Rounds all values to integer. Modifies self!
-    #FIXME: Change name to "round!" and add "round" method that modifies a copy
-    def round
+    def round!
       @bitmap.rows.collect! do
         |row|
         row.collect! do
@@ -1064,9 +1063,14 @@ module Imgrb
     end
 
     ##
+    #Rounds all values to integer.
+    def round
+      return self.copy.round!
+    end
+
+    ##
     #Takes ceiling of all values. Modifies self!
-    #FIXME: Change name to "ceil!" and add "ceil" method that modifies a copy
-    def ceil
+    def ceil!
       @bitmap.rows.collect! do
         |row|
         row.collect! do
@@ -1078,9 +1082,14 @@ module Imgrb
     end
 
     ##
+    #Takes ceiling of all values.
+    def ceil
+      return self.copy.ceil!
+    end
+
+    ##
     #Takes floor of all values. Modifies self!
-    #FIXME: Change name to "floor!" and add "floor" method that modifies a copy
-    def floor
+    def floor!
       @bitmap.rows.collect! do
         |row|
         row.collect! do
@@ -1091,6 +1100,11 @@ module Imgrb
       self
     end
 
+    ##
+    #Takes floor of all values.
+    def floor
+      return self.copy.floor!
+    end
 
     def grayscale?
       @header.grayscale?
