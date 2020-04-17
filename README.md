@@ -2,6 +2,8 @@
 [Pure Ruby library](https://github.com/kkrmno/imgrb) for reading and writing png and apng (animated png). Current API may change (not stable).
 
 Example usage below. See also [the wiki](https://github.com/kkrmno/imgrb/wiki) for additional examples.
+
+
 <br>[![logo](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/imgrb_logo.png)](https://github.com/kkrmno/imgrb/wiki/Creating-animated-logo)
 
 ## Description
