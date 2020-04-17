@@ -127,6 +127,17 @@ module Imgrb
     class ChunktIME
       include AbstractChunk, Ancillary, Public, Unsafe
 
+
+      def self.assemble(date)
+        data_bytes = [(date.year >> 8) & 0xFF, date.year & 0xFF]
+        data_bytes << date.month
+        data_bytes << date.day
+        data_bytes << date.hour
+        data_bytes << date.min
+        data_bytes << date.sec
+        new(data_bytes.pack("C*"))
+      end
+
       def self.type
         "tIME"
       end
@@ -137,10 +148,10 @@ module Imgrb
         data = @data.unpack("C*")
         year = data[0..1]
         year = Shared::interpret_bytes_2(year)
-        #Year, Month, Day, Hour, Min, Sec
-        return DateTime.new(year, data[2],
+        #Year, Month, Day, Hour, Min, Sec, UTC
+        return Time.new(year, data[2],
                   data[3], data[4],
-                  data[5], data[6])
+                  data[5], data[6], "+00:00")
       end
     end
 

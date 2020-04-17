@@ -3,6 +3,8 @@
 
 Example usage below. See also [the wiki](https://github.com/kkrmno/imgrb/wiki) for additional examples.
 
+![logo](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/imgrb_logo.png)
+
 ## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, etc.).
 

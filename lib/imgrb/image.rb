@@ -717,6 +717,9 @@ module Imgrb
                                       "channels."
       end
 
+      col = col.round
+      row = row.round
+
       rows = image.rows
       rows.size.times do
         |r|
@@ -1131,7 +1134,7 @@ module Imgrb
                    delay_num = 1, delay_den = 24,
                    dispose_op = :none, blend_op = :source)
 
-      #TODO: CHECK VALID INPUT ARGUMENTS, E.G. DISPOSE_OP AND BLEND_OP
+      #TODO: CHECK VALID INPUT ARGUMENTS, E.G. DISPOSE_OP AND BLEND_OP, x_offset, y_offset gives image inside frame, etc.
       #TODO: REFACTOR!
 
       if(img.size[0] > size[0] || img.size[1] > size[1])
