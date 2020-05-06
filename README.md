@@ -4,7 +4,6 @@
 Example usage below. See also [the wiki](https://github.com/kkrmno/imgrb/wiki) for additional examples.
 
 
-<br>
 [![logo](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/imgrb_logo.png)](https://github.com/kkrmno/imgrb/wiki/Creating-animated-logo)
 
 ## Description
@@ -93,7 +92,6 @@ The `add_text` method expects Latin-1 (ISO-8859-1) characters. If you need to st
 See details on the iTXt chunk here: https://www.w3.org/TR/2003/REC-PNG-20031110/#11iTXt
 
 ### Overlay transparent image on background image
-<br>
 ![background](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_earth_small.png)
 ![foreground](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_mars_small.png)
 
@@ -101,7 +99,6 @@ Image credit: NASA
 
 
 After setting the alpha channel of the mars image to 180, overlaying the transparent foreground on top of the background yields:
-<br>
 ![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
 
 
@@ -168,7 +165,6 @@ In many cases, the file size of the animation can be kept smaller by making use 
 
 For illustration purposes we will iteratively generate a Sierpinski triangle as shown in the figure below:
 
-<br>
 ![apng output](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png)
 
 
