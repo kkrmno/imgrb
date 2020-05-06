@@ -38,7 +38,7 @@ class ImgrbTest < Test::Unit::TestCase
       |file_path|
 
       if @test_feature == "x"
-        #Invalid png files should generally raise exception (for exception see below).
+        #Invalid png files should generally raise exception (except in the case below).
         assert_raise do
           Imgrb::Image.new(file_path)
         end
