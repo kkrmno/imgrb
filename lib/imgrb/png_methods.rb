@@ -2,7 +2,7 @@ module Imgrb
 
   #General methods used when reading/writing png files.
   #[MOST OF THESE SHOULD PROBABLY BE PRIVATE!]
-  module PngMethods
+  module PngMethods  #:nodoc?:
 
     def self.known_ancillary_chunk?(chunk)
       chunk_type_ancillary?(chunk.type) && !Imgrb::Chunks.get_chunk_class(chunk.type).nil?
@@ -287,8 +287,8 @@ module Imgrb
     ##
     #Decompresses an n-bit png image stream. Returns the filters as
     #an array and the image data as a 2D array.
-    #CAREFUL: If n < 8 the image data is returned already defiltered,
-    #else the image data is still filtered.
+    #CAREFUL: If n < 8 and the image is not interlaced, the image data is
+    #returned already defiltered, else the image data is still filtered.
     def self.inflate_n_bit(header, png_image_stream, n)
       if n >= 8
         filters = []
@@ -387,6 +387,8 @@ module Imgrb
     #Modifies image!
     #
     #Make private?
+    #Note that filters are applied to _bytes_ not to pixels!
+    #Unsigned arithmetic mod 256
     def self.defilter(header, image, filters, show_filters)
       bpp = header.channels  #Bytes per pixel
       bpp = bpp*2 if header.bit_depth == 16
@@ -394,12 +396,12 @@ module Imgrb
         |filter, i|
         row = image[i]
         if filter == 0                  #Do nothing if filter 0
-          if show_filters
-            row.each_with_index do
-              |b, index|
-              image[i][index] = 255
-            end
-          end
+          # if show_filters
+          #   row.each_with_index do
+          #     |b, index|
+          #     image[i][index] = 255
+          #   end
+          # end
         elsif filter == 1               #Defilter subtract
           row.each_with_index do
             |b, index|
@@ -467,6 +469,7 @@ module Imgrb
 
     ##
     #Replaces indexes with palette values in bitmap
+    #Note that the palette pixel values are RGB 8-bit.
     def self.depalette(bitmap)
       image = bitmap.rows
       palette = bitmap.palette
@@ -964,6 +967,7 @@ module Imgrb
             bytes = chunk.get_raw
             req_pos = chunk.required_pos
 
+
             if req_pos == :none
               #Put ancillary chunks with no requirements on position
               #after the last IDAT chunk.
@@ -975,6 +979,10 @@ module Imgrb
                 warn "The required position of a known ancillary chunk "\
                      "#{chunk.type} is unknown. This should be fixed."
               end
+
+              #If an unknown chunk is read from a png file, this should give
+              #a compliant required position of the unknown chunk (possibly
+              #stricter than necessary).
               req_pos = chunk.pos
             elsif req_pos == :apng_special
               req_pos = chunk.pos

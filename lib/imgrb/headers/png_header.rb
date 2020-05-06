@@ -63,6 +63,7 @@ module Imgrb::Headers
           end
         end
 
+        @bit_depth = 8 #Png palette must be 8-bit.
         @image_type = new_col_type
 
       elsif @image_type == Imgrb::PngConst::GRAYSCALE &&

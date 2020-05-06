@@ -1,7 +1,7 @@
 module Imgrb
 
   #General methods used internally when reading/writing png files.
-  module ApngMethods
+  module ApngMethods #:nodoc:
 
     private
     def self.create_frames(header, frame_control_chunks, frame_data_chunks, palette_chunk, transparency_chunk)

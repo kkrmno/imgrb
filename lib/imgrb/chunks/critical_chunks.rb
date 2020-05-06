@@ -5,7 +5,7 @@ module Imgrb
     class ChunkIDAT
       include AbstractChunk, Critical, Public
 
-      def self.type
+      def self.type #:nodoc:
         "IDAT"
       end
 
@@ -23,7 +23,7 @@ module Imgrb
     class ChunkIHDR
       include AbstractChunk, Critical, Public
 
-      def self.type
+      def self.type #:nodoc:
         "IHDR"
       end
 
@@ -49,7 +49,7 @@ module Imgrb
     class ChunkPLTE
       include AbstractChunk, Critical, Public
 
-      def self.type
+      def self.type #:nodoc:
         "PLTE"
       end
 
@@ -65,7 +65,7 @@ module Imgrb
     class ChunkIEND
       include AbstractChunk, Critical, Public
 
-      def self.type
+      def self.type #:nodoc:
         "IEND"
       end
 

@@ -3,15 +3,21 @@ module Imgrb
   #This class represents textual data along with any keywords read from chunks
   #that deal with text (i.e. tEXt, zTXt, and iTXt)
   class Text
-    attr_reader :international, :language, :translated_keyword
+    attr_reader :language, :translated_keyword
     def initialize(keyword, text, compressed = false, international = false,
                    language = "", translated_keyword = "")
       @keyword = keyword
       @text = text
       @compressed = compressed
       @international = international
-      @language = language #should force encoding ("646") probably
+      @language = language.force_encoding("646")
       @translated_keyword = translated_keyword.force_encoding("UTF-8")
+    end
+
+    ##
+    #Returns true if the text chunk is international, false otherwise
+    def international?
+      @international
     end
 
     ##

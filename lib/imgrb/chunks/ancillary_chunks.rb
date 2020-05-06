@@ -477,9 +477,11 @@ module Imgrb
     # =====================================
 
     ##
-    #General unknown, safe chunk.
+    #General unknown, safe chunk. Used when encountering unknown, safe chunks
+    #when reading a png file.
     class ChunkSafe
       include AbstractChunk, Ancillary, Safe
+      #Returns the chunk type name (four characters as specified in the png spec)
       attr_reader :type
       def initialize(type, data, pos)
         @type = type
@@ -492,10 +494,9 @@ module Imgrb
         Imgrb::PngMethods::chunk_type_public?(type)
       end
 
-      #According to the png specification, the relative position
-      #of a safe-to-copy ancillary chunk may only be relevant in
-      #so far as it specifies whether the chunk appears before
-      #or after IDAT. I.e. e.g. a PLTE chunk may be inserted before
+      #The relative position of a safe-to-copy ancillary chunk is only relevant
+      #in so far as it specifies whether the chunk appears before or after IDAT.
+      #I.e., e.g. a PLTE chunk may be inserted before
       #or after an unknown safe chunk.
       def required_pos
         :unknown
@@ -503,9 +504,11 @@ module Imgrb
     end
 
     ##
-    #General unknown, unsafe chunk.
+    #General unknown, unsafe chunk. Used when encountering unknown, unsafe chunks
+    #when reading a png file.
     class ChunkUnsafe
       include AbstractChunk, Ancillary, Unsafe
+      #Returns the chunk type name (four characters as specified in the png spec)
       attr_reader :type
       def initialize(type, data, pos)
         @type = type
@@ -518,6 +521,8 @@ module Imgrb
         Imgrb::PngMethods::chunk_type_public?(type)
       end
 
+      #The relative position of an unsafe-to-copy ancillary chunk does not change
+      #with respect to critical chunks, thus respecting the png spec.
       def required_pos
         :unknown
       end

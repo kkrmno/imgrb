@@ -23,6 +23,10 @@ module Imgrb::Headers
       false
     end
 
+    def grayscale?
+      false
+    end
+
     ##
     #FIXME: Should probably throw exception
     def to_png_header

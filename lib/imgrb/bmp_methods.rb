@@ -1,7 +1,7 @@
 module Imgrb
 
   #General methods used when reading/writing bmp files.
-  module BmpMethods
+  module BmpMethods #:nodoc:
     private
     def self.add_bmp_bytes(bmp, integer, size)
       if size == 2

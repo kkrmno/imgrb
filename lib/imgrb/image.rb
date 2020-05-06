@@ -9,7 +9,18 @@ module Imgrb
 
     #include Imgrb::BitmapModule::Drawable
     include Enumerable
-    attr_reader   :texts, :time, :header, :ancillary_chunks, :animation_frames, :bitmap
+    #Contains some additional information about the image instance. Usually not
+    #necessary except for internal use.
+    attr_reader :header
+    attr_reader :animation_frames #:nodoc: Maybe useful to user and should be documented?
+    attr_reader :bitmap #:nodoc: Maybe useful to user and should be documented?
+
+    #Get/set the default background color of the image (limited support), e.g.
+    #used when saving a png with alpha as a bmp (which does not support an alpha
+    #channel).
+    #
+    #Creates a bKGD chunk if background_color is not equal to [] and the image
+    #is saved as a png-file.
     attr_accessor :background_color
 
     #Construct an Image instance containing data from some image _img_ with
@@ -178,11 +189,12 @@ module Imgrb
       end
 
       depalette if @header.paletted?
-
     end
 
     ##
-    #Retrieve list of ancillary_chunks. Also remove empty entries (bookkeeping).
+    #Retrieve list of ancillary_chunks. Also remove empty entries as a
+    #side-effect (bookkeeping). Use add_chunk to add ancillary chunks to this
+    #image (stripped unless saved as a png).
     def ancillary_chunks
       @ancillary_chunks.delete_if do
         |key, value|
@@ -495,6 +507,23 @@ module Imgrb
     end
 
     ##
+    #Yields pixel value, and its corresponding x-, and y-position.
+    #Optionally takes a block, otherwise returns an Enumerator
+    def each_with_coord
+
+      return to_enum(__method__) unless block_given?
+
+      idx = 0
+      self.each do |pxl|
+        x = idx % self.width
+        y = idx / self.width
+        idx += 1
+        yield pxl, x, y
+      end
+    end
+
+
+    ##
     #Do something to each row
     def each_row &block
       Enumerator.new {
@@ -543,6 +572,9 @@ module Imgrb
       each.with_index(&block)
     end
 
+    ##
+    #Transposes the pixel matrix making the rows columns. Mainly useful when
+    #the Image instance is used as a convolution kernel.
     def transpose
       transpose_img = Imgrb::Image.new(height, width, [0]*channels)
       height.times do
@@ -557,7 +589,7 @@ module Imgrb
 
     ##
     #Convolves image with kernel (also an Image instance) and returns result as a new image.
-    #The kernel must have either 1 channel or equal the number of channels as the image.
+    #The kernel must have either 1 channel or a number of channels equal to that of the image.
     #
     #Default border behavior is :zero, meaning padding with zeros. All options:
     #* +:zero+,        pad with zeros
@@ -565,8 +597,8 @@ module Imgrb
     #* +:replicate+,   pad by extending image with closest border pixel
     #* +:circular+,    pad as if the image is periodic
     #
-    #TODO: Refactor
     def convolve(kernel, border_behavior = :zero)
+      #TODO: Refactor
       if kernel.channels != self.channels && kernel.channels != 1
         raise ArgumentError, "Kernel must either be flat (i.e. 1 channel), or same depth as image (i.e. #{self.channels} channel(s))"
       end
@@ -832,6 +864,7 @@ module Imgrb
     #Use +add_international_text+ if UTF-8 is required.
     #
     def add_text(keyword, text, compressed = false)
+      #TODO: text = text.encode!("ISO-8859-1")?
       kw_length = keyword.bytes.to_a.size
       raise ArgumentError, "Keyword must be 1-79 bytes long" unless 1 <= kw_length && kw_length <= 79
       if(compressed)
@@ -870,6 +903,7 @@ module Imgrb
     #* +translated_keyword+ is a UTF-8 encoded string containing a translation of the keyword into +language+
     #* +text+ is a UTF-8 encoded string containing the text written in +language+
     def add_international_text(language, keyword, translated_keyword, text, compressed = false)
+      #TODO: text = text.encode!("UTF-8"), etc.?
       kw_length = keyword.bytes.to_a.size
       raise ArgumentError, "Keyword must be 1-79 bytes long" unless 1 <= kw_length && kw_length <= 79
       if(compressed)
@@ -890,14 +924,42 @@ module Imgrb
       add_chunk(Chunks::ChunkiTXt.new(data))
     end
 
+    ##
+    #Returns +true+ if the content of the image bitmap is a valid instance of an
+    #image of the type indicated by the header (e.g. only integer values between
+    #0 and 255 for 8-bit images). Otherwise returns +false+.
+    #
+    #If this returns false, saving the image may yield unexpected results.
+    #No automatic check is performed, meaning invalid images can be saved
+    #without warning.
+    def valid?
+      max_value = 2**header.bit_depth - 1
+      mini, maxi = bitmap.rows.flatten.minmax
+
+      #Must be between 0 and max value
+      return false if mini < 0 || maxi > max_value
+
+      #Must be integer to be valid
+      each_row do
+        |r|
+        is_int = r.all?{|val| val - val.to_i == 0}
+        return false if !is_int
+      end
+
+      #All checks passed
+      return true
+    end
 
     ##
     #Channels start from 0. RGBA is stored as R at channel 0,
     #G at channel 1, B at channel 2, and A at channel 3.
+    #For grayscale images with alpha, the channel 0 is the value,
+    #while channel 1 is the alpha channel.
+    #
     #Returns:
-    #* a given channel as an Image, or
-    #* a given row of a given channel as an array, or
-    #* a given pixel of a given channel as an array/scalar
+    #* a given channel as an Image, e.g. get_channel(\c) or
+    #* a given row of a given channel as an array, e.g. get_channel(c, nil, row), or
+    #* a given pixel of a given channel as an array/scalar, e.g. get_channel(c, col, row)
     def get_channel(c, col = nil, row = nil)
       if c < 0 || c >= channels
         raise ArgumentError, "Channel #{c} does not exist!"
@@ -996,7 +1058,7 @@ module Imgrb
       self
     end
 
-    def move(x, y)
+    def move(x, y) #:nodoc: TODO: Decide if useful to user and should be documented.
       @bitmap.move(x, y)
       self
     end
@@ -1047,7 +1109,9 @@ module Imgrb
     end
 
 
-    def inspect
+    ##
+    #For printing
+    def inspect #:nodoc:
       "#<Imgrb::Image:#{width}x#{height}, #{header.image_format}>"
     end
 
@@ -1109,6 +1173,9 @@ module Imgrb
       return self.copy.floor!
     end
 
+    ##
+    #Returns true if the image is a grayscale image (with or without alpha).
+    #Otherwise returns false.
     def grayscale?
       @header.grayscale?
     end
@@ -1119,6 +1186,8 @@ module Imgrb
       @header.channels
     end
 
+    ##
+    #Returns true if the image has an alpha channel. Otherwise returns false.
     def has_alpha?
       if @header.nil?
         return false

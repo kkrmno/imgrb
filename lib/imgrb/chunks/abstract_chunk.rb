@@ -1,6 +1,7 @@
 module Imgrb
   module Chunks
     #This is a mixin module that provides basic functionality for chunk classes.
+    #If classes provide their own initialize method, it should call super.
     module AbstractChunk
       attr_reader :data, :pos
       ##
@@ -42,10 +43,15 @@ module Imgrb
         nil
       end
 
+      ##
+      #Return CRC of chunk
       def crc
         [Zlib.crc32(type + @data, 0)].pack('N')
       end
 
+      ##
+      #Returns the data part of the chunk as bytes (override for chunks if more
+      #specific format is desired).
       def get_data
         return @data
       end
@@ -56,6 +62,8 @@ module Imgrb
       end
 
       private
+      ##
+      #Checks that the chunk name follows the rules laid out in the png spec.
       def check_name_integrity
         if !(/\A[a-zA-Z]{4}\z/ =~ type)
           raise Imgrb::Exceptions::HeaderError, "Chunk name '#{type}' must "\

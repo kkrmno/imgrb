@@ -10,8 +10,16 @@ module Imgrb
     #image class has one bitmap instance, which contains the images pixel data.
     class Bitmap
 
+      #Returns the pixel data as an array of rows containing the bytes that make
+      #up the image.
       attr_reader :rows
-      attr_accessor :palette, :transparency_palette
+
+      #Currently should only be used internally. May change in the future.
+      attr_accessor :palette, :transparency_palette #:nodoc:
+
+      ##
+      #Takes a reference to the Image instance that contains this Bitmap, as
+      #well as an array of arrays (representing the rows) containing pixel data.
       def initialize(image, rows = [])
         @image = image
         @rows = rows
@@ -196,9 +204,9 @@ module Imgrb
         #TODO: Refactor
         filters, @rows = Imgrb::PngMethods::inflate_n_bit(header, data,
                                                                header.bit_depth)
-        #At the moment inflate_n_bit defilters and inflates n-bit images
-        #for n < 8, but only inflates for n >= 8.
-        if header.bit_depth == 8 || header.bit_depth == 16 || header.bit_depth == 1 || header.bit_depth == 2 || header.bit_depth == 4
+        #At the moment inflate_n_bit defilters and inflates n-bit, non-interlaced
+        #images for n < 8, but only inflates for n >= 8.
+        # if header.bit_depth == 8 || header.bit_depth == 16 || header.bit_depth == 1 || header.bit_depth == 2 || header.bit_depth == 4
           if header.interlaced?
             #Defilter each pass and then combine.
             defiltered_passes = []
@@ -248,13 +256,14 @@ module Imgrb
             end
             @rows = Imgrb::PngMethods::combine_passes(header, defiltered_passes)
 
+          #Because non-interlaced 1-, 2-, 4-bit images have already been defiltered.
           elsif header.bit_depth == 8 || header.bit_depth == 16
             @rows = Imgrb::PngMethods::defilter(header, @rows, filters,
                                                      false)
             #Remove show_filters argument? I.e     this ^
             Imgrb::PngMethods::merge_bytes(@rows) if header.bit_depth == 16
           end
-        end
+        # end
 
 
         #Normalize pixel array so that it only contains values between 0 and 255
@@ -262,10 +271,10 @@ module Imgrb
         #   Imgrb::PngMethods::normalize_image_data(@rows)
         # end
 
-        if header.grayscale? && header.bit_depth < 8
-          #Rescales to 8-bit values, probably should not do this (or should be optional)
-          @rows = Imgrb::PngMethods::read_grayscale(header, @rows)
-        end
+        # if header.grayscale? && header.bit_depth < 8
+        #   #Rescales to 8-bit values, probably should not do this (or should be optional)
+        #   @rows = Imgrb::PngMethods::read_grayscale(header, @rows)
+        # end
         filters
       end
 
@@ -291,7 +300,7 @@ module Imgrb
             end
             if @image.has_alpha? && (i+1)%4 == 0
               #DONT WRITE ALPHA TO BMP
-              #Use background_color for alpha if existent
+              #Use background_color for alpha if existent. TODO: CHECK THIS!
               if @image.background_color != nil && @image.background_color != []
                 bmp_formatted[ind][pixel_index-3] += ((1.0-(p/255.0))*(@image.background_color[0] - bmp_formatted[ind][pixel_index-3])).to_i
                 bmp_formatted[ind][pixel_index-4] += ((1.0-(p/255.0))*(@image.background_color[1] - bmp_formatted[ind][pixel_index-4])).to_i
