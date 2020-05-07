@@ -455,7 +455,11 @@ module Imgrb
       if x.nil?
         @bitmap.rows[y]
       else
-        @bitmap.rows[y][x*header.channels..(x+1)*header.channels-1]
+        if header.channels == 1
+          @bitmap.rows[y][x]
+        else
+          @bitmap.rows[y][x*header.channels..(x+1)*header.channels-1]
+        end
       end
     end
 
