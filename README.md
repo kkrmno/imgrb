@@ -246,7 +246,8 @@ at the end, save the animated png. Note the use of the blend operation :over use
   end
 
   #Add a comment describing the image.
-  image_0.add_text("Comment", "This is an animated png illustrating an iterated approach to constructing the Sierpinski triangle.")
+  image_0.add_text("Comment",
+                   "An animated png illustrating an iterated approach to constructing the Sierpinski triangle.")
 
   image_0.save("animated_sierpinski.png")
 ```
@@ -387,9 +388,9 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
 ```ruby
 
   img_with_auDi_chunk = Imgrb::Image.new("black_white_ticking.png")
-  #Since there may be multiple chunks of the same name, chunks of the same type
-  #are stored in a hash associated with the key given by the chunk type (as a
-  #symbol).
+  #Since there may be multiple chunks of the same name in a png, chunks of the
+  #same type are stored in an array in a hash associated with the key given by
+  #the chunk type (as a symbol).
   auDi_data_hash = img_with_auDi_chunk.ancillary_chunks[:auDi][0].get_data
 ```
 
