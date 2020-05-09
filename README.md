@@ -394,6 +394,23 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
   auDi_data_hash = img_with_auDi_chunk.ancillary_chunks[:auDi][0].get_data
 ```
 
+### Image Gradient Example
+[The wiki](https://github.com/kkrmno/imgrb/wiki/Image-Gradient") shows an example of computing the image gradient and related information:
+
+<a href="https://github.com/kkrmno/imgrb/wiki/Image-Gradient">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped.png" width="440">
+  <br>
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_x.png" width="440">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_y.png" width="440">
+  <br>
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_mag.png" width="440">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_angles.png" width="440">
+</a>
+
+<i>
+The original image depicts "The Music Lesson" by Chelsea Porcelain Manufactory from the collection of the Metropolitan Museum of Art and is licensed under CC0 1.0.
+</i>
+
 
 ## REQUIREMENTS:
 * Ruby >= 1.9.3 (may work with earlier versions)
