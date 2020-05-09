@@ -395,7 +395,7 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
 ```
 
 ### Image Gradient Example
-[The wiki](https://github.com/kkrmno/imgrb/wiki/Image-Gradient") shows an example of computing the image gradient and related information:
+[The wiki](https://github.com/kkrmno/imgrb/wiki/Image-Gradient) shows an example of computing the image gradient and related information:
 
 <a href="https://github.com/kkrmno/imgrb/wiki/Image-Gradient">
   <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped.png" width="440">
