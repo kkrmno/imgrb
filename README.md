@@ -407,6 +407,7 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
   <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_angles.png" width="440">
 </a>
 
+<br>
 <i>
 The original image depicts "The Music Lesson" by Chelsea Porcelain Manufactory from the collection of the Metropolitan Museum of Art and is licensed under CC0 1.0.
 </i>
