@@ -543,6 +543,19 @@ module Imgrb
       }.each(&block)
     end
 
+    ##
+    #Do something to each channel
+    def each_channel &block
+      Enumerator.new {
+        |channel|
+        self.channels.times do
+          |c|
+          channel << self.get_channel(c)
+        end
+        self
+      }.each(&block)
+    end
+
 
     ##
     #Can be used to iterate over each frame of an animated image,
@@ -834,6 +847,7 @@ module Imgrb
       end
 
       if row.nil? && col.nil?
+        return self.copy if channels == 1 #Faster to just copy if selecting channel 0 of an image with a single channel
         chn = []
         @bitmap.rows.each do
           |row|

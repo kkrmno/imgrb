@@ -192,10 +192,10 @@ module Imgrb::BitmapModule
     end
 
     ##
-    #Apply lambda to each channel, pixelwise. The lambda should take a
-    #single value as input (the channel value) and return a single value (the
-    #new channel value)
-    def apply_lambda(lambda)
+    #Apply lambda to each channel, pixelwise (i.e. to each color component of
+    #each pixel). The lambda should take a single value as input (the channel
+    #value) and return a single value (the new channel value).
+    def apply_lambda_flat(lambda)
       img = self.copy
       img.bitmap.rows.each do
         |r|
@@ -204,42 +204,75 @@ module Imgrb::BitmapModule
       return img
     end
 
+
+    ##
+    #Apply lambda to each pixel. The lambda should take a single scalar if the
+    #image has a single channel, otherwise an array of size equal to the number
+    #of channels of the image, and should return a scalar/an array of size equal
+    #to the number of desired channels in the transformed image (between 1 and 4)
+    def apply_lambda(lambda)
+      n_channels = Array(lambda[self[0,0]]).size
+      img = Imgrb::Image.new(self.width, self.height, [0]*n_channels)
+      self.each_with_coord do
+        |val,x,y|
+        rgb = lambda[val]
+        img[y,x] = rgb
+      end
+      return img
+    end
+
     ##
     #Applies cos to each channel, pixelwise.
     def cos
-      apply_lambda(->(x){Math.cos(x)})
+      apply_lambda_flat(->(x){Math.cos(x)})
     end
 
     ##
     #Applies sin to each channel, pixelwise.
     def sin
-      apply_lambda(->(x){Math.sin(x)})
+      apply_lambda_flat(->(x){Math.sin(x)})
     end
 
     ##
     #Applies tan to each channel, pixelwise.
     def tan
-      apply_lambda(->(x){Math.tan(x)})
+      apply_lambda_flat(->(x){Math.tan(x)})
     end
 
     ##
     #Applies acos to each channel, pixelwise.
     def acos
-      apply_lambda(->(x){Math.acos(x)})
+      apply_lambda_flat(->(x){Math.acos(x)})
     end
 
     ##
     #Applies asin to each channel, pixelwise.
     def asin
-      apply_lambda(->(x){Math.asin(x)})
+      apply_lambda_flat(->(x){Math.asin(x)})
     end
 
     ##
     #Applies atan to each channel, pixelwise.
     def atan
-      apply_lambda(->(x){Math.atan(x)})
+      apply_lambda_flat(->(x){Math.atan(x)})
     end
 
+    ##
+    #Applies atan2 to each grayscale pixel.
+    #TODO: Handle images with several channels!
+    def atan2(img_x)
+      atan_img = Imgrb::Image.new(self.width, self.height, [0]*self.channels)
+
+      if self.channels == 1
+        self.each_with_coord do
+          |val, x, y|
+          atan_val = Math.atan2(val, img_x[y,x])
+          atan_img[y,x] = atan_val
+        end
+      end
+
+      return atan_img
+    end
 
     private
     #======================================================================
