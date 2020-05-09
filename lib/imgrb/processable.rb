@@ -145,6 +145,9 @@ module Imgrb::BitmapModule
       return conv_img
     end
 
+    ##
+    #Returns the horizontal and vertical components of the gradient of an image
+    #using Gaussian derivatives (+sigma+ = +1+ by default).
     def gradient(sigma = 1, border_behavior = :replicate)
       #Separable convolution. Faster as 1D convolutions than 2D.
       kernel_h = Imgrb.gaussian(sigma)
@@ -188,10 +191,54 @@ module Imgrb::BitmapModule
       return rescaled
     end
 
+    ##
+    #Apply lambda to each channel, pixelwise. The lambda should take a
+    #single value as input (the channel value) and return a single value (the
+    #new channel value)
+    def apply_lambda(lambda)
+      img = self.copy
+      img.bitmap.rows.each do
+        |r|
+        r.collect!{|e| lambda[e]}
+      end
+      return img
+    end
 
+    ##
+    #Applies cos to each channel, pixelwise.
+    def cos
+      apply_lambda(->(x){Math.cos(x)})
+    end
 
+    ##
+    #Applies sin to each channel, pixelwise.
+    def sin
+      apply_lambda(->(x){Math.sin(x)})
+    end
 
+    ##
+    #Applies tan to each channel, pixelwise.
+    def tan
+      apply_lambda(->(x){Math.tan(x)})
+    end
 
+    ##
+    #Applies acos to each channel, pixelwise.
+    def acos
+      apply_lambda(->(x){Math.acos(x)})
+    end
+
+    ##
+    #Applies asin to each channel, pixelwise.
+    def asin
+      apply_lambda(->(x){Math.asin(x)})
+    end
+
+    ##
+    #Applies atan to each channel, pixelwise.
+    def atan
+      apply_lambda(->(x){Math.atan(x)})
+    end
 
 
     private
