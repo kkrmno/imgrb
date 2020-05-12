@@ -146,6 +146,41 @@ module Imgrb::BitmapModule
     end
 
     ##
+    #Dilate image using the given +structuring_element+ (SE). For a flat SE, use
+    #an image containing only 0s and -Float::INFINITY.
+    def dilate(structuring_element)
+      #TODO: Optimize!
+      dilate_helper(self, structuring_element, true)
+    end
+
+
+    ##
+    #Erode image using the given +structuring_element+ (SE). For a flat SE, use
+    #an image containing only 0s and -Float::INFINITY.
+    def erode(structuring_element)
+      #TODO: Optimize!
+      return -dilate_helper((-self), structuring_element, false)
+    end
+
+    ##
+    #Open image using the given +structuring_element+ (SE). For a flat SE, use
+    #an image containing only 0s and -Float::INFINITY
+    def open(structuring_element)
+      #TODO: Optimize!
+      erode(structuring_element).dilate(structuring_element)
+    end
+
+    ##
+    #Open image using the given +structuring_element+ (SE). For a flat SE, use
+    #an image containing only 0s and -Float::INFINITY
+    def close(structuring_element)
+      #TODO: Optimize!
+      dilate(structuring_element).erode(structuring_element)
+    end
+
+
+
+    ##
     #Returns the horizontal and vertical components of the gradient of an image
     #using Gaussian derivatives (+sigma+ = +1+ by default).
     def gradient(sigma = 1, border_behavior = :replicate)
@@ -274,7 +309,221 @@ module Imgrb::BitmapModule
       return atan_img
     end
 
+
+    ##
+    #Resizes image by given scale and method. By default, the method used is
+    #bilinear interpolation. Other options are: :nearest (for nearest neighbor)
+    #
+    #Note that scaling an image down may cause aliasing.
+    #Example usage:
+    #* img.resize(scale_xy)
+    #* img.resize(scale_xy, method)
+    #* img.resize(scale_x, scale_y)
+    #* img.resize(scale_x, scale_y, method)
+    def resize(*scale, method)
+      #TODO: Implement antialiasing.
+      if scale.size == 0
+        scale = [method, method]
+        method = :bilinear
+      elsif scale.size == 1
+        scale = [scale[0], method]
+        method = :bilinear
+      elsif scale.size != 2
+        raise ArgumentError, "wrong number of arguments (given #{scale.size}, expected 1..2)"
+      end
+
+      raise ArgumentError, "scale must be larger than 0." if scale.include? 0
+
+
+      if method == :bilinear
+        return bilinear(scale[0], scale[1])
+      elsif method == :nearest
+        return nearest_neighbor(scale[0], scale[1])
+      else
+        raise ArgumentError, "unknown method: #{method}"
+      end
+    end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     private
+
+    ##
+    #Dilate image using the given +structuring_element+ (SE). For a flat SE, use
+    #an image containing only 0s and -Float::INFINITY.
+    def dilate_helper(image, structuring_element, reflect = true)
+      #TODO: Optimize!
+      if image.channels == 1
+        dilated_image = dilate_gray(image, structuring_element, reflect)
+      else
+        dilated_channels = image.each_channel.collect do |channel_img|
+          dilate_gray(channel_img, structuring_element, reflect)
+        end
+        dilated_image = Imgrb::Image.new(*dilated_channels)
+      end
+      return dilated_image
+    end
+
+    def dilate_gray(image, structuring_element, reflect)
+      #TODO: Optimize!
+      dilated_image = Imgrb::Image.new(image.width, image.height, 0)
+      se_x_off = structuring_element.width/2
+      se_y_off = structuring_element.height/2
+
+      if reflect
+        reflect_mult = -1
+      else
+        reflect_mult = 1
+      end
+
+      image.height.times do |y|
+        image.width.times do |x|
+          dil_val = -Float::INFINITY
+          structuring_element.each_with_coord do |val, se_x, se_y|
+            next if val == -Float::INFINITY
+            img_x = reflect_mult*(se_x - se_x_off) + x
+            img_y = reflect_mult*(se_y - se_y_off) + y
+            next if img_x < 0 || img_x >= image.width || img_y < 0 || img_y >= image.height
+
+            img_val_nf = image[img_y, img_x] + val
+            dil_val = img_val_nf if img_val_nf > dil_val
+          end
+
+          dilated_image[y, x] = dil_val
+        end
+      end
+
+      return dilated_image
+    end
+
+
+    ##
+    #Nearest neighbor interpolation
+    def nearest_neighbor(scale_x, scale_y)
+      if self.channels == 1
+        interpolated_image = nearest_neighbor_gray(self, scale_x, scale_y)
+      else
+        interpolated_channels = self.each_channel.collect do |channel_img|
+          nearest_neighbor_gray(channel_img, scale_x, scale_y)
+        end
+        interpolated_image = Imgrb::Image.new(*interpolated_channels)
+      end
+
+      return interpolated_image
+    end
+
+    ##
+    #Nearest neighbor interpolation (single channel)
+    def nearest_neighbor_gray(image, scale_x, scale_y)
+      interpolated_img = Imgrb::Image.new((image.width*scale_x).round,
+                                          (image.height*scale_y).round,
+                                          [0]*image.channels)
+
+      interpolated_img.height.times do |y_|
+        y = y_+0.5 #Center of pixel is at idx+0.5
+        y_orig_n = ((y/scale_y.to_f)-0.5).round #To find index remove 0.5 from position (see above)
+        interpolated_img.width.times do |x_|
+          x = x_+0.5
+          x_orig_n = ((x/scale_x.to_f)-0.5).round
+          interpolated_img[y_,x_] = image[y_orig_n,x_orig_n]
+        end
+      end
+
+      return interpolated_img
+
+    end
+
+    ##
+    #Bilinear interpolation
+    def bilinear(scale_x, scale_y)
+      if self.channels == 1
+        interpolated_image = bilinear_gray(self, scale_x, scale_y)
+      else
+        interpolated_channels = self.each_channel.collect do |channel_img|
+          bilinear_gray(channel_img, scale_x, scale_y)
+        end
+
+        interpolated_image = Imgrb::Image.new(*interpolated_channels)
+      end
+
+      return interpolated_image
+    end
+
+    ##
+    #Linear interpolation.
+    def linear_int(x0,y0,x1,y1,x)
+      w = (x - x0)/(x1-x0)
+      return y0*(1 - w) + y1*w
+    end
+
+    ##
+    #Special case for x1 - x0 = 1
+    def linear_int_special(y0, y1, x)
+      w = x - x.to_i
+      return y0*(1 - w) + y1*w
+    end
+
+    ##
+    #Bilinear interpolation (single channel)
+    #TODO: Clean up and optimize
+    def bilinear_gray(image, scale_x, scale_y)
+      interpolated_img = Imgrb::Image.new((image.width*scale_x).round,
+                                          (image.height*scale_y).round,
+                                          [0]*image.channels)
+
+      (interpolated_img.height).times do |y_|
+        y = y_+0.5 #Center of pixel is at idx+0.5
+        y_orig = (y/scale_y.to_f - 0.5) #To find index remove 0.5 from position (see above)
+        y_less = y_orig.floor
+        y_more = y_orig.ceil
+        y_more = y_less if y_more > image.height-1
+        y_less = y_more if y_less < 0
+        row_less = image.bitmap.rows[y_less]
+        row_more = image.bitmap.rows[y_more]
+
+        (interpolated_img.width).times do |x_|
+          x = x_+0.5
+          x_orig = (x/scale_x.to_f - 0.5)
+          x_less = x_orig.floor
+          x_more = x_orig.ceil
+          x_more = x_less if x_more > image.width-1
+          x_less = x_more if x_less < 0
+
+          if x_less != x_more
+            y_less_int = linear_int_special(row_less[x_less], row_less[x_more], x_orig)
+            y_more_int = linear_int_special(row_more[x_less], row_more[x_more], x_orig)
+          else
+            y_less_int = row_less[x_less]
+            y_more_int = row_more[x_less]
+          end
+
+          if y_less != y_more
+            int_val = linear_int_special(y_less_int, y_more_int, y_orig)
+          else
+            int_val = y_less_int
+          end
+
+          interpolated_img[y_,x_] = int_val
+        end
+      end
+
+      return interpolated_img
+    end
+
+
+
     #======================================================================
     #Convolution helpers. Hacky stuff to improve performance for 1D kernels
     #======================================================================

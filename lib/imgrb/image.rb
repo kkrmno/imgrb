@@ -933,12 +933,12 @@ module Imgrb
       self
     end
 
-    ##
-    #Resize. Modifies self!
-    def resize(x, y)
-      header.resize(x, y, @bitmap)
-      self
-    end
+    # ##
+    # #Resize. Modifies self!
+    # def resize(x, y)
+    #   header.resize(x, y, @bitmap)
+    #   self
+    # end
 
     def move(x, y) #:nodoc: TODO: Decide if useful to user and should be documented.
       @bitmap.move(x, y)
