@@ -641,7 +641,7 @@ module Imgrb
     ##
     #Takes an Image instance and tries to save it as a paletted image.
     #returns true if success, false if failure
-    def self.try_palette_save(img, filename, compression_level, samples = 3000)
+    def self.try_palette_save(img, file, compression_level, samples = 3000)
       #Do not palette grayscale images. At the moment it is too much of a hassle
       #to try to palette images with an alpha channel, so don't.
 
@@ -654,7 +654,7 @@ module Imgrb
         palette, paletted_image = palette(img)
       end
       if palette.size > 0 && palette.size <= 256*3
-        save_png_paletted(img, header, filename, compression_level,
+        save_png_paletted(img, header, file, compression_level,
                           palette, paletted_image)
         return true
       else
@@ -1052,26 +1052,23 @@ module Imgrb
 
     ##
     #Saves img as a png
-    def self.save_png(img, header, filename, compression_level, skip_ancillary)
+    def self.save_png(img, header, file, compression_level, skip_ancillary)
 
       png_arr = generate_png(img, header, compression_level, skip_ancillary)
 
-       File.open(filename, 'wb') do
-        |output|
-        output << png_arr[0] #Store PNG signature
-        output << png_arr[1] #Store IHDR chunk
-        output << png_arr[2] #Store ancillary chunks after IHDR
-        output << png_arr[3] #Store PLTE chunk
-        output << png_arr[4] #Store bKGD chunk (has to be after PLTE)
-        output << png_arr[5] #Store ancillary chunks after PLTE
-        output << png_arr[6] #Store image data in a single IDAT chunk
-        output << png_arr[7] #Ancillary chunks after IDAT chunk
-        output << png_arr[8] #Add IEND chunk with CRC
-      end
+      file << png_arr[0] #Store PNG signature
+      file << png_arr[1] #Store IHDR chunk
+      file << png_arr[2] #Store ancillary chunks after IHDR
+      file << png_arr[3] #Store PLTE chunk
+      file << png_arr[4] #Store bKGD chunk (has to be after PLTE)
+      file << png_arr[5] #Store ancillary chunks after PLTE
+      file << png_arr[6] #Store image data in a single IDAT chunk
+      file << png_arr[7] #Ancillary chunks after IDAT chunk
+      file << png_arr[8] #Add IEND chunk with CRC
     end
 
     #Private
-    def self.save_png_paletted(img, header, filename, compression_level,
+    def self.save_png_paletted(img, header, file, compression_level,
                                palette, paletted_image)
       png_image = PngConst::PNG_START #PNG signature
 
@@ -1095,10 +1092,7 @@ module Imgrb
       #Store IEND chunk. Always the same.
       png_image << PngConst::PNG_END #Add IEND chunk with CRC
 
-       File.open(filename, 'wb') do
-        |output|
-        output.print png_image
-      end
+      file.print png_image
     end
 
     ##

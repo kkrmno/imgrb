@@ -1290,12 +1290,59 @@ module Imgrb
         #Currently saving apng as paletted is a problem (the fdAT chunks need to
         #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
         compression_level = 0 if apng?
-        save_png(filename, compression_level, *options)
+        # file = File.new(filename, 'wb')
+        File.open(filename, 'wb') do |output|
+          save_png(output, compression_level, *options)
+        end
+        # file.close
       else
-        save_bmp(filename)
+        File.open(filename, 'wb') do |output|
+          save_bmp(output)
+        end
       end
 
+      return true #Should maybe check and return false if save failed
+
     end
+
+    ##
+    #Save image to file/StringIO or similar. The format is specified by +format+
+    #and is either :png or :bmp (:png is default).
+    #
+    #Compression level only applies to png.
+    #Compression level 0 is fastest.
+    #Currently, compression level 1 tries to convert to indexed color png and
+    #tries out several filters. Compression level 0 does not try converting to
+    #indexed color and only uses filter 0 (this may change in future, and more
+    #options for how to compress may be introduced).
+    #
+    #If :skip_ancillary is given as an option, no ancillary chunks will be
+    #saved, thus stripping all metadata.
+    #
+    #This method can be used if you want to create a png/bmp without writing it
+    #to disk:
+    #
+    # require 'stringio'
+    # #Given an image instance, img
+    # png_io = StringIO.new
+    # png_io.set_encoding Encoding::BINARY
+    # img.save_to_file(png_io)
+    # png_str = png_io.string
+    # p png_str #=> "\x89PNG . . ."
+    def save_to_file(file, format = :png, compression_level = 0, *options)
+      if format == :png
+        compression_level = 0 if apng?
+        save_png(file, compression_level, *options)
+      else
+        save_bmp(file)
+      end
+
+      #Should the method close the file, or leave responsibility to caller?
+      file.close
+
+      return file
+    end
+
 
     ##
     #Returns the image width in pixels
@@ -1661,7 +1708,7 @@ module Imgrb
     end
 
 
-    def save_png(filename, compression_level = 0, *options)
+    def save_png(file, compression_level = 0, *options)
       if @bitmap.empty?
         raise Imgrb::Exceptions::ImageError, "No image data read"
       end
@@ -1671,14 +1718,14 @@ module Imgrb
         skip_ancillary = false
       end
       #When saving as palette alpha channel not retained at the moment.
-      unless compression_level > 0 && PngMethods::try_palette_save(self, filename, compression_level)
+      unless compression_level > 0 && PngMethods::try_palette_save(self, file, compression_level)
         PngMethods::save_png(self, @header.to_png_header,
-                             filename, compression_level, skip_ancillary)
+                             file, compression_level, skip_ancillary)
       end
     end
 
     #Saves bmp
-    def save_bmp(filename)
+    def save_bmp(file)
       if @header.channels < 3
         raise Imgrb::Exceptions::ImageError, "Can only save color images as bmp."
       end
@@ -1690,21 +1737,16 @@ module Imgrb
       if @bitmap.empty?
         raise Imgrb::Exceptions::ImageError, "No image data read"
       end
-      s_image = []
 
-      File.open(filename, 'wb') do
-        |output|
-        bmp = "BM"
-        s_image = @bitmap.to_bmp_format
+      bmp = "BM"
+      bmp << @header.to_bmp_header.print_header
+      s_image = @bitmap.to_bmp_format
 
-        bmp << @header.to_bmp_header.print_header
-
-        s_image.each do
-          |row|
-          bmp << row.pack("C*")
-        end
-        output.print bmp
+      s_image.each do
+        |row|
+        bmp << row.pack("C*")
       end
+      file.write bmp
     end
 
     #Side effects: @header is set to the image header
