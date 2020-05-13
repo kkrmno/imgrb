@@ -118,29 +118,29 @@ class ImgrbTest < Test::Unit::TestCase
 
   def test_create_incorrect
     assert_raise do
-      img = Imgrb::Image.new(500,0,[42,-1,10,99])
+      Imgrb::Image.new(500,0,[42,-1,10,99])
     end
     assert_raise do
-      img = Imgrb::Image.new(0,10,[42,-1,10])
+      Imgrb::Image.new(0,10,[42,-1,10])
     end
     assert_raise do
-      img = Imgrb::Image.new(0,0,[42,-1])
+      Imgrb::Image.new(0,0,[42,-1])
     end
     assert_raise do
-      img = Imgrb::Image.new(5,5,[42,-1,5,5,5])
+      Imgrb::Image.new(5,5,[42,-1,5,5,5])
     end
     assert_raise do
-      img = Imgrb::Image.new(0,0,[])
+      Imgrb::Image.new(0,0,[])
     end
     assert_raise do
-      img = Imgrb::Image.new(0,0)
+      Imgrb::Image.new(0,0)
     end
     assert_raise do
-      img = Imgrb::Image.new(0)
+      Imgrb::Image.new(0)
     end
     img_ok = Imgrb::Image.new(10,10,5)
     assert_raise do
-      img = Imgrb::Image.new(img_ok, img_ok, img_ok, img_ok, img_ok)
+      Imgrb::Image.new(img_ok, img_ok, img_ok, img_ok, img_ok)
     end
   end
 

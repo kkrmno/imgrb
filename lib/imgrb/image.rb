@@ -84,7 +84,7 @@ module Imgrb
         set_channel(2, options[1].rows) if channels > 2
         set_channel(3, options[2].rows) if channels > 3
 
-      when Fixnum
+      when Numeric
         #TODO: Raise exception if too many options, e.g. Image.new(10,10,42,...,42,0)
         #(format should be width, height, color)
         width_ = img
@@ -1606,6 +1606,7 @@ module Imgrb
         @only_metadata = !!opt.index(:only_metadata)
         @skip_ancillary = !!opt.index(:skip_ancillary)
         @skip_crc = !!opt.index(:skip_crc)
+        @from_string = !!opt.index(:from_string)
       end
     end
 
@@ -1647,7 +1648,7 @@ module Imgrb
 
       data_1byte = [dispose_op_byte, blend_op_byte].pack("C*")
 
-      data = data_4byte + data_2byte + data_1byte
+      return data_4byte + data_2byte + data_1byte
     end
 
 
@@ -1656,7 +1657,7 @@ module Imgrb
       png_parts = Imgrb::PngMethods.generate_png(img, img.header.to_png_header, 0, true)
       idat_bytes = png_parts[6]
                                 #SKIP THE IDAT CHUNK NAME + OLD LENGTH INFO
-      data = [seq_num].pack("N")+idat_bytes[8..-1]
+      return [seq_num].pack("N")+idat_bytes[8..-1]
     end
 
 
@@ -1690,7 +1691,6 @@ module Imgrb
         raise Imgrb::Exceptions::ImageError, "No image data read"
       end
       s_image = []
-      s_width = -1
 
       File.open(filename, 'wb') do
         |output|
@@ -1717,8 +1717,8 @@ module Imgrb
         @header = BmpMethods::extract_bmp_header(image)
         bpp = @header.bit_depth
 
-        width_factor = 1
-        width_factor = 3 if bpp == 24
+        # width_factor = 1
+        # width_factor = 3 if bpp == 24
 
         if bpp != 24
           #Only partial support for non 24-bit bmp images.

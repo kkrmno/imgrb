@@ -76,7 +76,7 @@ module Imgrb
     def self.find_interlaced_row_size(header, pass)
       w = header.width
       #w = header.bytes_per_row
-      wmod = w % 8  #1, 2, 4, and 16-bit?
+      # wmod = w % 8  #1, 2, 4, and 16-bit?
       wdiv = w / 8
       wplus = 0
       per_row = [1,1,2,2,4,4,8]
@@ -102,7 +102,7 @@ module Imgrb
     #in the pass specified.
     def self.find_interlaced_row_size_in_bits(header, pass)
       w = header.width
-      wmod = w % 8  #1, 2, 4, and 16-bit?
+      # wmod = w % 8  #1, 2, 4, and 16-bit?
       wdiv = w / 8
       wplus = 0
       per_row = [1,1,2,2,4,4,8]
@@ -371,15 +371,15 @@ module Imgrb
       w = ((header.width/(8.0/header.bit_depth)).ceil*header.channels)+1
 
       starts = (0..(header.height-1)).collect{|x| x*w}
-      filters = []
       image = []
       starts.each do
         |start|
-        filters = img[start]
         image << img[(start+1)..(start+w-1)]
       end
 
-      [img.values_at(*starts), image]
+      filters = img.values_at(*starts)
+
+      [filters, image]
     end
 
     ##
@@ -726,7 +726,8 @@ module Imgrb
           #For now should always be uppercase.
           reserved = chunk_type_reserved?(chunk_ascii)
           #Safe to copy to a modified datastream.
-          safe = chunk_type_safe?(chunk_ascii)
+          #Handled by create_chunk
+          # safe = chunk_type_safe?(chunk_ascii)
 
           warn "Chunk: reserved bit set" if reserved
 
@@ -768,14 +769,14 @@ module Imgrb
     #Get chunk crc
     def self.read_chunk_crc(at, img)
       data_length = read_chunk_data_length(at, img)
-      img[(at + 8 +data_length)..(at + 8 + data_length+3)].unpack("C*")
+      img[(at + 8 + data_length)..(at + 8 + data_length + 3)].unpack("C*")
     end
 
     ##
     #Get data contained in chunk
     def self.read_chunk_data(at, img)
       data_length = read_chunk_data_length(at, img)
-      img[(at+8)..(at+7+data_length)]
+      img[(at + 8)..(at + 7 + data_length)]
     end
 
     ##
@@ -847,7 +848,7 @@ module Imgrb
       # best = z.deflate(best_row.pack('C*'), Zlib::FINISH).size
       4.times do
         |i|
-        filter = i +1
+        filter = i + 1
         filtered = filter_row(image, row, filter, bpp)
         filtered_comp_size = Zlib::Deflate.deflate(filtered.pack('C*')).size
         if filtered_comp_size < best

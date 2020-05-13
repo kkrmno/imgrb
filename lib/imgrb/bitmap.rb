@@ -101,7 +101,6 @@ module Imgrb
       #Can probably be done faster. Change complicated expression
       #with each_slice, zip, flatten etc.
       def add_channels(channel_rows = [[0]*@image.header.width]*@image.header.height, n_channels)
-        row = []
         new_rows = []
         @rows.each_with_index do
           |r, i|
