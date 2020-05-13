@@ -1,7 +1,7 @@
 require 'rake/testtask'
 require 'rdoc/task'
 
-require 'imgrb/version'
+require_relative 'lib/imgrb/version'
 
 Rake::TestTask.new do |t|
 	t.libs << 'test'

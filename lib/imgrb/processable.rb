@@ -345,6 +345,31 @@ module Imgrb::BitmapModule
     end
 
 
+    ##
+    #Compares against another image of equal size and returns a new image which,
+    #for each channel, is 1 where this image is greater than the other, 0
+    #otherwise
+    def is_greater(img_to_compare)
+      return is_compared(img_to_compare, :greater)
+    end
+
+    ##
+    #Compares against another image of equal size and returns a new image which,
+    #for each channel, is 1 where this image is lesser than the other, 0
+    #otherwise
+    def is_lesser(img_to_compare)
+      return is_compared(img_to_compare, :lesser)
+    end
+
+    ##
+    #Compares against another image of equal size and returns a new image which,
+    #for each channel, is 1 where this image is equal to the other, 0
+    #otherwise
+    def is_equal(img_to_compare)
+      return is_compared(img_to_compare, :equal)
+    end
+
+
 
 
 
@@ -359,6 +384,38 @@ module Imgrb::BitmapModule
 
 
     private
+
+    def is_compared(comp_image, relation)
+      if comp_image.is_a?(Numeric)
+        comp_image = Imgrb::Image.new(self.width, self.height, [comp_image]*self.channels)
+      elsif comp_image.is_a?(Array)
+        comp_image = Imgrb::Image.new(self.width, self.height, comp_image)
+      end
+      if self.size != comp_image.size
+        raise ArgumentError, "images must be of equal size (given #{comp_image.size}, expected #{self.size})"
+      end
+
+      comp_img_channels = self.each_channel.with_index.collect do |channel_img, c|
+        is_compared_gray(channel_img, comp_image.get_channel(c), relation)
+      end
+
+      return Imgrb::Image.new(*comp_img_channels)
+    end
+
+    def is_compared_gray(image, comp_image, relation)
+      res_image = Imgrb::Image.new(self.width, self.height, 0)
+      image.each_with_coord do |val, x, y|
+        if relation == :greater
+          holds = val > comp_image[y][x]
+        elsif relation == :lesser
+          holds = val < comp_image[y][x]
+        elsif relation == :equal
+          holds = val == comp_image[y][x]
+        end
+        res_image[y][x] = 1 if holds
+      end
+      return res_image
+    end
 
     ##
     #Dilate image using the given +structuring_element+ (SE). For a flat SE, use
