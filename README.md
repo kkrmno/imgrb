@@ -110,7 +110,30 @@ image_alpha_overlay = image_fg.alpha_over(image_bg)
 image_alpha_overlay.save("earth_mars_overlay.png")
 ```
 
-### Creating, saving, and reading an animated png (apng):
+### Drawing lines and disks
+<a href="https://github.com/kkrmno/imgrb/wiki/Drawing"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/anim_orbit.png" alt="line animation" align="right"/></a>
+
+Drawing a line on top of an image can be done in the following manner:
+
+```ruby
+
+image.draw_line(x_start, y_start, x_end, y_end, color, width)
+```
+Note that the positions of the end points can be specified using floats and that
+the coordinates do not need to be inside the bounds of the image (only the visible
+part of the line will be drawn). The width argument specifies the thickness of
+the line and can also be a float.
+
+Similarly, a disk can be drawn as follows:
+
+```ruby
+
+image.draw_disk(x_origin, y_origin, radius, color)
+```
+Again, the coordinates of the origin as well as the radius of the disk can be
+floats.
+
+### Creating, saving, and reading an animated png (apng)
 In this example we will generate a simple animated png, save it and read it back.
 
 * Simple case:

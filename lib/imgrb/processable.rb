@@ -350,7 +350,7 @@ module Imgrb::BitmapModule
     #Example:
     # draw_line(-100.5, 400, 1000, -10.23, [255, 0, 0], 10.5)
     #The +line_width+ argument ranges from 0 and up (0 is the thinnest line).
-    def draw_line(x0, y0, x1, y1, color, line_width = 0)
+    def draw_line(x0, y0, x1, y1, color, line_width = 1)
       #TODO: Refactor
       #TODO: Make more accurate. Sometimes the end points of the line are off by
       #a small amount
