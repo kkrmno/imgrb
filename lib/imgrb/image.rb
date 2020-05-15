@@ -513,6 +513,8 @@ module Imgrb
       }.each(&block)
     end
 
+    alias each_pixel each
+
     ##
     #Yields pixel value, and its corresponding x-, and y-position.
     #Optionally takes a block, otherwise returns an Enumerator
@@ -578,12 +580,6 @@ module Imgrb
         end
         jump_to_frame(old_frame_nr)
       }.each(&block)
-    end
-
-    ##
-    #Alias of each
-    def each_pixel &block
-      each(&block)
     end
 
     ##

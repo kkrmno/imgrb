@@ -311,6 +311,176 @@ module Imgrb::BitmapModule
 
 
     ##
+    #Draw a disk of specified radius and color centered at the given coordinates.
+    #The coordinates and radius can be floats or integers.
+    #Example:
+    # draw_disk(x, y, r, [255, 0, 255, 255]) #Purple, opaque disk of radius r at x, y
+    def draw_disk(x0, y0, radius, color)
+      raise ArgumentError, "radius must be non-negative." if radius < 0
+      if color.size != self.channels
+        raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{image.channels})"
+      end
+      x0.to_f
+      y0.to_f
+      color = Array(color)
+      img = self.copy
+
+      (x0.floor-radius.ceil).upto(x0.ceil+radius.ceil) do |x|
+        (y0.floor-radius.ceil).upto(y0.ceil+radius.ceil) do |y|
+          next if x < 0 || x >= img.width || y < 0 || y >= img.height
+          dist = Math.sqrt((x-x0)**2 + (y-y0)**2)
+          coverage = radius - dist + 0.5 #Close enough
+          coverage = [0, coverage].max
+          coverage = [coverage, 1].min
+          orig_color = Array(self[y,x])
+          new_color = color.collect.with_index{|col,idx| coverage * col + (1 - coverage) * orig_color[idx]}
+
+          img[y, x] = new_color
+        end
+      end
+      img
+    end
+
+
+    #Draw line by coverage
+    #Draw a line from (x0, y0) to (x1, y1) (coordinates may be float or integer).
+    #The line does not have to start or end inside the image (only the visible
+    #part will be drawn). The color of the line can be specified as well as its
+    #width.
+    #Example:
+    # draw_line(-100.5, 400, 1000, -10.23, [255, 0, 0], 10.5)
+    #The +line_width+ argument ranges from 0 and up (0 is the thinnest line).
+    def draw_line(x0, y0, x1, y1, color, line_width = 0)
+      #TODO: Refactor
+      #TODO: Make more accurate. Sometimes the end points of the line are off by
+      #a small amount
+      raise ArgumentError, "width must be non-negative." if line_width < 0
+      if color.size != self.channels
+        raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{image.channels})"
+      end
+
+
+      line_width = line_width/2.0
+      color = Array(color)
+      x0 = x0.to_f
+      y0 = y0.to_f
+      x1 = x1.to_f
+      y1 = y1.to_f
+      img = self.copy
+
+      #Special case for drawing a line with no length (i.e. a dot)
+      #If this does not hold, dx won't be 0
+      if x0 == x1 && y0 == y1
+        return img.draw_disk(x0, y0, line_width, color)
+      end
+
+      #Draw endpoints as disks (rounded edges)
+      img = img.draw_disk(x0, y0, line_width, color)
+      img = img.draw_disk(x1, y1, line_width, color)
+
+      #Two cases: one where the slope of the line is between -1 and 1 and one
+      #where the slope is steeper
+      is_mostly_horizontal = (x1-x0).abs > (y1-y0).abs
+
+      if !is_mostly_horizontal
+        x0, y0 = y0, x0
+        x1, y1 = y1, x1
+      end
+      if x0 > x1
+        x1, x0 = x0, x1
+        y1, y0 = y0, y1
+      end
+
+      dx = x1 - x0
+      dy = y1 - y0
+      slope = dy/dx
+
+      #Move endpoints one unit further along in each direction to clean up the
+      #ends of the line
+      x0 = x0-1
+      x1 = x1+1
+      y0 = y0-slope
+      y1 = y1+slope
+
+      #In the next part, some points outside the range of the endpoints of the
+      #line are considered (to handle endpoints for wide lines), but we need the
+      #original start and end coordinates
+      x0_unextended = x0
+      y0_unextended = y0
+      x1_unextended = x1
+      y1_unextended = y1
+
+      #Find the number of pixels that may need to be updated per column along the
+      #wide line.
+      angle = Math.atan(dy/dx)
+      pixel_column_height = (1+line_width / Math.cos(angle)).ceil
+
+      #Find how far away we may need to look to handle the ends of the wide line
+      x_end_piece = (line_width * Math.sin(angle)).abs
+      x0 -= x_end_piece
+      x1 += x_end_piece
+      y0 -= x_end_piece * slope
+      y1 += x_end_piece * slope
+
+      #Decimal part of x used to correct position of the pixels at integer positions
+      x_frac = x0 - x0.floor
+
+      y = y0+slope
+      (x0+1).floor.upto(x1.ceil-1) do |x|
+        x_dist = x - x0 + x_frac
+        (y.floor-pixel_column_height).upto(y.ceil+pixel_column_height) do |y_col|
+
+          #If the line is more vertical than horizontal, swap x and y in updates
+          #to match the swap in the beginning (see above)
+          if is_mostly_horizontal
+            x_to_update = x
+            y_to_update = y_col
+          else
+            x_to_update = y_col
+            y_to_update = x
+          end
+
+          #Skip pixels outside bounds, but continue drawing in case part of the line
+          #is inside the image
+          next if x_to_update < 0 || x_to_update >= img.width ||
+                  y_to_update < 0 || y_to_update >= img.height
+
+          #Since the line has width, we generally need to consider x and y coordinates
+          #some way away from the center line (near the end points of the center line).
+          #Here we decide if the considered pixels are part of the _wide_ line or not.
+          dot_prod0 = dx*(x-x0_unextended) + dy*(y_col-y0_unextended)
+          dot_prod1 = (-dx)*(x-x1_unextended) + (-dy)*(y_col - y1_unextended)
+          if dot_prod0 < 0 || dot_prod1 < 0
+            next
+          end
+
+          #Find out how much the current pixel is covered by the line
+          y_dist = y - y0
+          y_col_dist = y - y_col
+          current_draw_length = Math.sqrt(x_dist**2 + y_dist**2)
+          distance_to_line = y_col_dist.abs * x_dist.abs / current_draw_length
+          distance_to_wide_line = distance_to_line - line_width
+          coverage = 0.5 - distance_to_wide_line #Close enough
+
+          #Clamp coverage to values between 0 and 1
+          coverage = [0.0, coverage].max
+          coverage = [coverage, 1.0].min
+
+          #Mix original color and line color based on coverage
+          #TODO: Mixing when alpha channel present probably needs work.
+          orig_color = Array(self[y_to_update, x_to_update])
+          new_color = color.collect.with_index{|c,idx| c * coverage + (1-coverage) * orig_color[idx]}
+          img[y_to_update, x_to_update] = new_color
+        end
+
+        y = y+slope
+      end
+
+      return img
+    end
+
+
+    ##
     #Resizes image by given scale and method. By default, the method used is
     #bilinear interpolation. Other options are: :nearest (for nearest neighbor)
     #
@@ -329,7 +499,7 @@ module Imgrb::BitmapModule
         scale = [scale[0], method]
         method = :bilinear
       elsif scale.size != 2
-        raise ArgumentError, "wrong number of arguments (given #{scale.size}, expected 1..2)"
+        raise ArgumentError, "wrong number of arguments (given #{scale.size+1}, expected 1..3)"
       end
 
       raise ArgumentError, "scale must be larger than 0." if scale.include? 0
@@ -354,6 +524,14 @@ module Imgrb::BitmapModule
     end
 
     ##
+    #Threshold an image returning a new image which is 0 where the original image
+    #was below the threhold, and 1 where above. The threshold can be specified
+    #per pixel and channel (as a threhold image), or as a single scalar applied
+    #as a threshold everywhere, or as an array of equal length to the number of
+    #channels of the original image, specifying the threshold for each channel.
+    alias threshold is_greater
+
+    ##
     #Compares against another image of equal size and returns a new image which,
     #for each channel, is 1 where this image is lesser than the other, 0
     #otherwise
@@ -368,6 +546,32 @@ module Imgrb::BitmapModule
     def is_equal(img_to_compare)
       return is_compared(img_to_compare, :equal)
     end
+
+    ##
+    #Invokes the given block once for each channel of the image. Creates a new
+    #image containing the channels returned by the block.
+    #The block must return a channel image.
+    #Example:
+    # #Returns a new image where the red channel is set to zero (assuming rgb or rgba image)
+    # img_without_red = img.collect_channels_to_image.with_index do |channel, idx|
+    #   if idx == 0
+    #     return channel*0
+    #   else
+    #     return channel
+    #   end
+    # end
+    def collect_channels_to_image &block
+      return to_enum(__method__) unless block_given?
+      new_channels = self.each_channel.collect &block
+      new_channels.each do |c|
+        if !c.is_a? Imgrb::Image || c.channels != 1
+          raise TypeError, "the block must return an image with a single channel!"
+        end
+      end
+      Imgrb::Image.new(*new_channels)
+    end
+
+    alias map_channels_to_image collect_channels_to_image
 
 
 
@@ -395,11 +599,11 @@ module Imgrb::BitmapModule
         raise ArgumentError, "images must be of equal size (given #{comp_image.size}, expected #{self.size})"
       end
 
-      comp_img_channels = self.each_channel.with_index.collect do |channel_img, c|
+      comp_img = self.collect_channels_to_image.with_index do |channel_img, c|
         is_compared_gray(channel_img, comp_image.get_channel(c), relation)
       end
 
-      return Imgrb::Image.new(*comp_img_channels)
+      return comp_img
     end
 
     def is_compared_gray(image, comp_image, relation)
@@ -425,10 +629,9 @@ module Imgrb::BitmapModule
       if image.channels == 1
         dilated_image = dilate_gray(image, structuring_element, reflect)
       else
-        dilated_channels = image.each_channel.collect do |channel_img|
+        dilated_image = image.collect_channels_to_image do |channel_img|
           dilate_gray(channel_img, structuring_element, reflect)
         end
-        dilated_image = Imgrb::Image.new(*dilated_channels)
       end
       return dilated_image
     end
@@ -472,10 +675,9 @@ module Imgrb::BitmapModule
       if self.channels == 1
         interpolated_image = nearest_neighbor_gray(self, scale_x, scale_y)
       else
-        interpolated_channels = self.each_channel.collect do |channel_img|
+        interpolated_image = self.collect_channels_to_image do |channel_img|
           nearest_neighbor_gray(channel_img, scale_x, scale_y)
         end
-        interpolated_image = Imgrb::Image.new(*interpolated_channels)
       end
 
       return interpolated_image
@@ -508,11 +710,9 @@ module Imgrb::BitmapModule
       if self.channels == 1
         interpolated_image = bilinear_gray(self, scale_x, scale_y)
       else
-        interpolated_channels = self.each_channel.collect do |channel_img|
+        interpolated_image = self.collect_channels_to_image do |channel_img|
           bilinear_gray(channel_img, scale_x, scale_y)
         end
-
-        interpolated_image = Imgrb::Image.new(*interpolated_channels)
       end
 
       return interpolated_image
