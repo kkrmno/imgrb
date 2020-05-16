@@ -311,7 +311,7 @@ Png-files consist of a collection of chunks identified by a four-letter (ISO 646
 
 * The first letter is upper case if it is a critical chunk (i.e. necessary for displaying the contents of the file) and lower case if ancillary (i.e. not strictly necessary for decoding the image data, meaning unknown ancillary chunks can be ignored when decoding).
 * The second letter specifies whether the chunk is public (i.e. defined in the png specification/registered by the Registration Authority), if upper case, or private (i.e. unregistered, e.g. as a result of some extension used by an application), if lower case.
-* The third letter must be upper case (lower case is reserved for possile future extension)!
+* The third letter must be upper case (lower case is reserved for possible future extension)!
 * The fourth letter relates to copying unrecognized ancillary chunks after modifying critical chunks. If upper case, the chunk is not safe to copy (i.e. such unrecognized chunks should not be copied if modifications have been made to critical chunks). If lower case, the chunk is safe to copy (i.e. the chunk does not depend on critical chunks, so can be copied even after modifying such chunks).
 
 In the following example, we add an ancillary, private, safe-to-copy chunk: "auDi". This chunk contains audio along with some properties. Namely, the length of the audio clip in milliseconds (4 bytes), the initial delay before the sound should be played (by some hypothetical application) in ms (4 bytes), the delay before the sound is repeated (4 bytes), and the number of times to loop the clip (4 bytes). The format of the audio data itself is not specified.
