@@ -412,6 +412,14 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
   auDi_data_hash = img_with_auDi_chunk.ancillary_chunks[:auDi][0].get_data
 ```
 
+### Unknown Chunks
+If a png with an unknown, ancillary chunk is read, an entry will still be added
+to ```ancillary_chunks```. However, the chunk object that is created is of a
+more generic class, e.g. ChunkSafe for an unknown ancillary chunk that is safe
+to copy. The raw data contained in such chunks can still be read by calling
+```get_data``` on the generic chunk instance and it is still possible to query
+chunk properties such as ```safe?```, ```critical?```, and ```public?```.
+
 ### Image Gradient Example
 [The wiki](https://github.com/kkrmno/imgrb/wiki/Image-Gradient) shows an example of computing the image gradient and related information:
 
