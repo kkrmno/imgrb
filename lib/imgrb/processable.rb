@@ -562,7 +562,7 @@ module Imgrb::BitmapModule
     # end
     def collect_channels_to_image &block
       return to_enum(__method__) unless block_given?
-      new_channels = self.each_channel.collect &block
+      new_channels = self.each_channel.collect(&block)
       new_channels.each do |c|
         if !c.is_a? Imgrb::Image || c.channels != 1
           raise TypeError, "the block must return an image with a single channel!"

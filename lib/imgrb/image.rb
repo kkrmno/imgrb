@@ -1282,19 +1282,8 @@ module Imgrb
         raise ArgumentError, "File name must contain a '.'"
       end
 
-      if file_type == "png"
-        #Currently saving apng as paletted is a problem (the fdAT chunks need to
-        #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
-        compression_level = 0 if apng?
-        # file = File.new(filename, 'wb')
-        File.open(filename, 'wb') do |output|
-          save_png(output, compression_level, *options)
-        end
-        # file.close
-      else
-        File.open(filename, 'wb') do |output|
-          save_bmp(output)
-        end
+      File.open(filename, 'wb') do |output|
+        save_to_file(output, file_type.to_sym, compression_level, *options)
       end
 
       return true #Should maybe check and return false if save failed
@@ -1327,7 +1316,6 @@ module Imgrb
     # p png_str #=> "\x89PNG . . ."
     def save_to_file(file, format = :png, compression_level = 0, *options)
       if format == :png
-        compression_level = 0 if apng?
         save_png(file, compression_level, *options)
       else
         save_bmp(file)
@@ -1708,11 +1696,16 @@ module Imgrb
       if @bitmap.empty?
         raise Imgrb::Exceptions::ImageError, "No image data read"
       end
+
       if options.index(:skip_ancillary)
         skip_ancillary = true
       else
         skip_ancillary = false
       end
+
+      #Currently saving apng as paletted is a problem (the fdAT chunks need to
+      #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
+      compression_level = 0 if apng?
       #When saving as palette alpha channel not retained at the moment.
       unless compression_level > 0 && PngMethods::try_palette_save(self, file, compression_level)
         PngMethods::save_png(self, @header.to_png_header,

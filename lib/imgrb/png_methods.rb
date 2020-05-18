@@ -941,8 +941,11 @@ module Imgrb
         |filter, i|
         chunk << filter.chr << filtered_image[i].pack('C*')
       end
+      #TODO: Add option for BEST_SPEED?
+      #Zlib:RLE available in standardlib Ruby >=2.0 but not clear when this is a
+      #good option. Perhaps should try after refining choices of png filters.
       z = Zlib::Deflate.new(Zlib::BEST_COMPRESSION, Zlib::MAX_WBITS,
-                             Zlib::MAX_MEM_LEVEL, Zlib::DEFAULT_STRATEGY) #Zlib:RLE available in standardlib Ruby >=2.0
+                             Zlib::MAX_MEM_LEVEL, Zlib::DEFAULT_STRATEGY)
       chunk = z.deflate(chunk, Zlib::FINISH)
       z.close
 
