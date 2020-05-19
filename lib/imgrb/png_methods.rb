@@ -645,6 +645,9 @@ module Imgrb
       #Do not palette grayscale images. At the moment it is too much of a hassle
       #to try to palette images with an alpha channel, so don't.
 
+      #16-bit paletted not valid png-format
+      return false if img.header.bit_depth == 16
+
       header = img.header.to_png_header
 
       return false if header.grayscale? || img.has_alpha?
@@ -890,8 +893,8 @@ module Imgrb
     end
 
     #Private
-    def self.get_header_bytes(img, header, color_type = header.image_type)
-      header.print_header(color_type)
+    def self.get_header_bytes(img, header, color_type = header.image_type, bit_depth = 8)
+      header.print_header(color_type, bit_depth)
     end
 
     ##
@@ -934,12 +937,17 @@ module Imgrb
     end
 
     #Private
-    def self.get_idat_bytes(filters, filtered_image)
+    def self.get_idat_bytes(filters, filtered_image, is_16_bit = false)
       chunk = ""
       #.pack('n*') for 16-bit images!
+      if is_16_bit
+        pack_str = "n*"
+      else
+        pack_str = "C*"
+      end
       filters.each.with_index do
         |filter, i|
-        chunk << filter.chr << filtered_image[i].pack('C*')
+        chunk << filter.chr << filtered_image[i].pack(pack_str)
       end
       #TODO: Add option for BEST_SPEED?
       #Zlib:RLE available in standardlib Ruby >=2.0 but not clear when this is a
@@ -1030,16 +1038,28 @@ module Imgrb
 
       bpp = header.channels
 
+      #TODO: Implement better compression for 16-bit images
+      if header.bit_depth == 16
+        compression_level = 0
+        is_16_bit = true
+        bit_depth_to_write = 16
+      elsif [1, 2, 4, 8].include? header.bit_depth
+        is_16_bit = false
+        bit_depth_to_write = 8
+      else
+        raise Imgrb::Exceptions::HeaderError, "invalid png bit depth: #{header.bit_depth}"
+      end
+
       #Calculate filters and filter the image.
       filters, filtered_image = filter_for_compression(img.rows,
                                                        compression_level, bpp)
 
-      head_bytes = get_header_bytes(img, header, color_type)
+      head_bytes = get_header_bytes(img, header, color_type, bit_depth_to_write)
       plte_bytes = ""
       bg_bytes   = get_background_bytes(img, header) #Might want to handle this
                                                      #as a regular ancillary
                                                      #chunk instead.
-      idat_bytes =  get_idat_bytes(filters, filtered_image)
+      idat_bytes =  get_idat_bytes(filters, filtered_image, is_16_bit)
 
       if skip_ancillary
         after_hd = after_plte = after_idat = ""

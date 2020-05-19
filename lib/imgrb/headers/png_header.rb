@@ -162,8 +162,8 @@ module Imgrb::Headers
 
     ##
     #Returns a string containing a png IHDR block.
-    def print_header(type = @image_type)
-      bit_depth = 8 #Default bit depth
+    def print_header(type = @image_type, bit_depth = 8)
+      #bit_depth = 8 #Default bit depth
       compression = 0
       filter = 0
       interlace = Imgrb::PngConst::NOT_INTERLACED

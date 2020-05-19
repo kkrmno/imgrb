@@ -12,7 +12,7 @@ class ImgrbTest < Test::Unit::TestCase
     each_file_with_updated_info do
       |file_path|
 
-      if @test_feature != "x" && @bit_depth != 16
+      if @test_feature != "x"
 
         img = Imgrb::Image.new(file_path)
         orig_rows = img.rows
@@ -25,8 +25,7 @@ class ImgrbTest < Test::Unit::TestCase
 
           img_resaved = Imgrb::Image.new(png_str, :from_string)
           resaved_rows = img_resaved.rows
-
-          assert orig_rows == resaved_rows, "Resaved image does not give same pixel data as original for image located at: #{file_path}"
+          assert orig_rows == resaved_rows, "Resaved image (at compression level: #{compression_level}) does not give same pixel data as original for image located at: #{file_path}"
         end
 
       end
