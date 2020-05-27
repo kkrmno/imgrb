@@ -354,14 +354,15 @@ module Imgrb::BitmapModule
       #TODO: Refactor
       #TODO: Make more accurate. Sometimes the end points of the line are off by
       #a small amount
+
+      color = Array(color)
       raise ArgumentError, "width must be non-negative." if line_width < 0
       if color.size != self.channels
-        raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{image.channels})"
+        raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{self.channels})"
       end
 
 
       line_width = line_width/2.0
-      color = Array(color)
       x0 = x0.to_f
       y0 = y0.to_f
       x1 = x1.to_f
