@@ -13,6 +13,11 @@ module Imgrb
       def initialize(data, pos = required_pos)
         @data = data
         @pos = pos
+
+        if data.size > 2**31-1
+          raise Imgrb::Exceptions::ChunkError,
+                "Trying to create a chunk exceeding the maximum length!"
+        end
         check_name_integrity
         when_read(data)
       end

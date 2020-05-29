@@ -200,6 +200,11 @@ module Imgrb
         yd = @data[4..7].unpack("C*")
         yd = Shared::interpret_bytes_4(yd)
         unit = @data[8].unpack("C*")[0]
+
+        if !(unit == 0 || unit == 1)
+          warn "Unrecognised unit value for pHYs chunk: #{unit}."
+        end
+
         return [xd, yd, unit]
       end
 
@@ -236,9 +241,7 @@ module Imgrb
         unit = @data[8].unpack("C*")[0]
 
         if !(unit == 0 || unit == 1)
-          raise Imgrb::Exceptions::ChunkError,
-              "Unrecognised unit value for "\
-              "oFFs chunk: #{unit}."
+          warn "Unrecognised unit value for oFFs chunk: #{unit}."
         end
 
         return [xoff, yoff, unit]
@@ -315,8 +318,180 @@ module Imgrb
     end
 
     ##
+    #Chunk containing Exif profile. See "Extensions to the PNG 1.2
+    #Specification", Version 1.5.0 (15 July 2017)
+    class ChunkeXIf
+      include AbstractChunk, Ancillary, Public, Safe
+
+      def initialize(data, pos)
+        @exif_hash = Hash.new
+        super(data, pos)
+      end
+
+      def self.type
+        "eXIf"
+      end
+
+      #Returns a hash containing fields that are stored in arrays associated
+      #with a tag. Normally, the array should only have a single member, but in
+      #case of tag collisions the fields are stored in this way. To get the data
+      #of a field in a parsed format, call +get_data+
+      #Example:
+      # exif_hash = img.ancillary_chunks[:eXIf][0].get_data
+      # img_orientation = exif_hash[:Orientation][0].get_data
+      #Or to get the thumbnail image (if one exists)
+      # img_thumbnail = exif_hash[:thumbnail][0].get_data
+      #Note that the thumbnail is not in a compatible format (usually JPEG),
+      #however if you want to write the bytes to disk, for example, to open the
+      #resulting file in a compatible viewer, you may do the following:
+      # IO.binwrite("thumbnail.jpg", img_thumbnail.get_data)
+      #You may call
+      # img_thumbnail.compression
+      #to check what kind of image compression was used for the thumbnail data.
+      #If you want the raw bytes you may call
+      # exif_hash[:Orientation][0].value
+      #If the field is of an unknown type, +get_data+ returns the values of the
+      #tag in an array, combining bytes into values as specified by the tag
+      #information.
+      def get_data
+        #First time, create hash contaning exif fields, freeze the hash, then
+        #return it. For future calls, simply return the frozen hash.
+        @pack_str ||= get_pack_str
+
+        if @pack_str == ""
+          warn "Unknown Exif format!"
+          return self.data
+        end
+
+
+        if @exif_hash.empty?
+          @thumbnail_start = -1
+          @thumbnail_length = -1
+
+          #Image File Directory (IFD)
+          #Number of IFDs should be at most 2
+          #IFD 0 records attribute information
+          #IFD 0 may contain an ExifIFD
+          #IFD 1 records thumbnail image
+          # puts "HANDLING IFD 0"
+          offset_to_ifd0 = data[4..7].unpack(@pack_str.upcase)[0]
+          offset_to_ifd1 = collect_fields_in_IFD(offset_to_ifd0, "IFD0")
+
+          #If there is a IFD 1, parse it.
+          if offset_to_ifd1 != 0
+            # puts "HANDLING IFD 1"
+            offset_to_ifd2 = collect_fields_in_IFD(offset_to_ifd1, "IFD1")
+            warn "Exif contains unexpected IFD 2 at offset #{offset_to_ifd2} (ignored)" if offset_to_ifd2 != 0
+          end
+
+          # puts "Extracting thumbnail"
+          thumbnail = extract_thumbnail
+          if thumbnail
+            @exif_hash[:thumbnail] ||= []
+            @exif_hash[:thumbnail] << thumbnail
+          end
+
+        end
+
+        @exif_hash.freeze
+      end
+
+
+      def required_pos
+        #Stricter than necessary, but compliant
+        :after_IHDR
+      end
+
+
+      private
+
+      def when_read(data)
+        if data.size > 2**16-9
+          warn "Exif data too large to fit into a JPEG APP1 marker (Exif) segment!"
+        end
+
+        @pack_str = get_pack_str
+
+        if @pack_str == ""
+          warn "Unknown Exif format!"
+        end
+      end
+
+      def get_pack_str
+        endian_str = data[0..3]
+        pack_str = ""
+
+        #II (little-endian)
+        if endian_str == [73, 73, 42, 0].pack("C*")
+          pack_str = "v"
+        #MM (big-endian)
+        elsif endian_str == [77, 77, 0, 42].pack("C*")
+          pack_str = "n"
+        end
+        return pack_str
+      end
+
+      def collect_fields_in_IFD(offset, ifd_name)
+        offset_to_next_ifd, fields = parse_IFD(offset, ifd_name)
+        store_fields(fields)
+        return offset_to_next_ifd
+      end
+
+      def parse_IFD(offset, ifd_name)
+        num_ifd_fields = data[offset..offset+1].unpack(@pack_str)[0]
+        ifd_fields = []
+
+        num_ifd_fields.times do |field|
+          # puts "\tFIELD #{field}"
+          field_data = data[offset+2+field*12...offset+2+(field+1)*12]
+          exif_field = Imgrb::Exif.create_field(field_data, @pack_str, data, ifd_name)
+
+          # puts "\tHandling field data: #{exif_field}"
+          # puts
+
+          ifd_fields << exif_field
+        end
+
+        offset_to_next_ifd_field = data[offset+2+(num_ifd_fields)*12..offset+2+(num_ifd_fields)*12+3].unpack(@pack_str.upcase)[0]
+
+        [offset_to_next_ifd_field, ifd_fields]
+      end
+
+      def store_fields(fields)
+        fields.each do |field|
+          if field.is_IFD_pointer?
+            offset_to_exif_ifd = field.get_data
+            # puts "HANDLING #{field.field_name} IFD"
+            offset_to_exif_ifd1 = collect_fields_in_IFD(offset_to_exif_ifd, field.field_name)
+            warn "Exif contains unexpected second #{field.field_name} IFD at offset #{offset_to_exif_ifd1} (ignored)" if offset_to_exif_ifd1 != 0
+          elsif field.class == Imgrb::Exif::JPEGInterchangeFormatField
+            @thumbnail_start = field.get_data
+          elsif field.class == Imgrb::Exif::JPEGInterchangeFormatLengthField
+            @thumbnail_length = field.get_data
+          else
+            #Store all attributes in IFD0, except pointers to IFDs
+            @exif_hash[field.field_name.to_sym] ||= []
+            @exif_hash[field.field_name.to_sym] << field
+          end
+        end
+      end
+
+      def extract_thumbnail
+        if @thumbnail_start >= 0 && @thumbnail_length > 0
+          thumbnail_data = data[@thumbnail_start..@thumbnail_start+@thumbnail_length+1]
+          thumbnail = Imgrb::Exif::Thumbnail.new(thumbnail_data, @exif_hash[:Compression][0].get_data)
+        else
+          thumbnail = nil
+        end
+        return thumbnail
+      end
+
+    end
+
+    ##
     #[ONLY USED INTERNALLY]
     #NEVER write to file. Do not register.
+    #TODO: REMOVE!
     class ChunkskIP
       include AbstractChunk, Ancillary, Private, Unsafe
 
@@ -465,10 +640,20 @@ module Imgrb
       end
     end
 
+
+
+
+
+
+
+
+
+    #Register specified chunks
     register_chunks(
                       ChunktEXt, ChunkiTXt, ChunkzTXt, ChunktIME,
                       ChunkgAMA, ChunkpHYs, ChunkoFFs, ChunkbKGD,
-                      ChunktRNS, ChunkacTL, ChunkfcTL, ChunkfdAT
+                      ChunktRNS, ChunkacTL, ChunkfcTL, ChunkfdAT,
+                      ChunkeXIf
                    )
 
 
