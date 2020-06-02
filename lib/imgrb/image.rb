@@ -456,12 +456,13 @@ module Imgrb
     #first and row second (get_pixel(x,y))
     def [](y, x = nil)
       if x.nil?
-        @bitmap.rows[y]
+        @bitmap.rows[y].dup
       else
-        if header.channels == 1
-          @bitmap.rows[y][x]
+        c = @header.channels
+        if c > 1
+          @bitmap.rows[y][x*c..(x+1)*c-1]
         else
-          @bitmap.rows[y][x*header.channels..(x+1)*header.channels-1]
+          @bitmap.rows[y][x]
         end
       end
     end
@@ -741,20 +742,10 @@ module Imgrb
     #Use +add_international_text+ if UTF-8 is required.
     #
     def add_text(keyword, text, compressed = false)
-      #TODO: text = text.encode!("ISO-8859-1")?
-      kw_length = keyword.bytes.to_a.size
-      raise ArgumentError, "Keyword must be 1-79 bytes long" unless 1 <= kw_length && kw_length <= 79
       if(compressed)
-        txt = PngMethods::deflate(text)
-        data = keyword.bytes.to_a.pack("C*")
-        data << "\x00\x00"
-        data << txt
-        add_chunk(Chunks::ChunkzTXt.new(data))
+        add_chunk(Chunks::ChunkzTXt.assemble(keyword, text))
       else
-        data = keyword.bytes.to_a.pack("C*")
-        data << "\x00"
-        data << text.bytes.to_a.pack("C*")
-        add_chunk(Chunks::ChunktEXt.new(data))
+        add_chunk(Chunks::ChunktEXt.assemble(keyword, text))
       end
     end
 
@@ -780,25 +771,7 @@ module Imgrb
     #* +translated_keyword+ is a UTF-8 encoded string containing a translation of the keyword into +language+
     #* +text+ is a UTF-8 encoded string containing the text written in +language+
     def add_international_text(language, keyword, translated_keyword, text, compressed = false)
-      #TODO: text = text.encode!("UTF-8"), etc.?
-      kw_length = keyword.bytes.to_a.size
-      raise ArgumentError, "Keyword must be 1-79 bytes long" unless 1 <= kw_length && kw_length <= 79
-      if(compressed)
-        txt = PngMethods::deflate(text)
-        null_byte_compr_str = "\x00\x01\x00"
-      else
-        txt = text
-        null_byte_compr_str = "\x00\x00\x00"
-      end
-
-      data = keyword.bytes.to_a.pack("C*")
-      data << null_byte_compr_str
-      data << language.bytes.to_a.pack("C*")
-      data << "\x00"
-      data << translated_keyword.bytes.to_a.pack("C*")
-      data << "\x00"
-      data << txt.bytes.to_a.pack("C*")
-      add_chunk(Chunks::ChunkiTXt.new(data))
+      add_chunk(Chunks::ChunkiTXt.assemble(language, keyword, translated_keyword, text, compressed))
     end
 
     ##
@@ -1707,7 +1680,7 @@ module Imgrb
       #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
       compression_level = 0 if apng?
       #When saving as palette alpha channel not retained at the moment.
-      unless compression_level > 0 && PngMethods::try_palette_save(self, file, compression_level)
+      unless compression_level > 0 && PngMethods::try_palette_save(self, file, compression_level, 3000, skip_ancillary)
         PngMethods::save_png(self, @header.to_png_header,
                              file, compression_level, skip_ancillary)
       end

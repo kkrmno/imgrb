@@ -641,7 +641,7 @@ module Imgrb
     ##
     #Takes an Image instance and tries to save it as a paletted image.
     #returns true if success, false if failure
-    def self.try_palette_save(img, file, compression_level, samples = 3000)
+    def self.try_palette_save(img, file, compression_level, samples = 3000, skip_ancillary = false)
       #Do not palette grayscale images. At the moment it is too much of a hassle
       #to try to palette images with an alpha channel, so don't.
 
@@ -658,7 +658,7 @@ module Imgrb
       end
       if palette.size > 0 && palette.size <= 256*3
         save_png_paletted(img, header, file, compression_level,
-                          palette, paletted_image)
+                          palette, paletted_image, skip_ancillary)
         return true
       else
         return false
@@ -1092,17 +1092,27 @@ module Imgrb
 
     #Private
     def self.save_png_paletted(img, header, file, compression_level,
-                               palette, paletted_image)
+                               palette, paletted_image, skip_ancillary)
       png_image = PngConst::PNG_START #PNG signature
+
+      if skip_ancillary
+        after_hd = after_plte = after_idat = ""
+      else
+        after_hd, after_plte, after_idat = ancillary_chunk_bytes(img)
+      end
 
       #Store IHDR chunk
       png_image += get_header_bytes(img, header, Imgrb::PngConst::INDEXED)
 
+      png_image << after_hd
+
       #Store PLTE chunk.
       png_image << get_palette_bytes(palette)
 
+      png_image << after_plte
+
       #Store  bKGD chunk
-      #png_image << get_background_bytes(img, header)
+      png_image << get_background_bytes(img, header)
 
       #Calculate filters and filter the image.
       rows = paletted_image.each_slice(img.width).to_a
@@ -1111,6 +1121,8 @@ module Imgrb
 
       #Store image data in a single IDAT chunk
       png_image << get_idat_bytes(filters, filtered_image)
+
+      png_image << after_idat
 
       #Store IEND chunk. Always the same.
       png_image << PngConst::PNG_END #Add IEND chunk with CRC

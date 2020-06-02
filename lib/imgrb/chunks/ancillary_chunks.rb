@@ -26,6 +26,18 @@ module Imgrb
         "tEXt"
       end
 
+      def self.assemble(keyword, text)
+        keyword_bytes = keyword.encode("ISO-8859-1").bytes.to_a
+        kw_length = keyword.bytes.to_a.size
+        unless 1 <= kw_length && kw_length <= 79
+          raise ArgumentError, "Keyword must be 1-79 bytes long"
+        end
+        data = keyword_bytes.pack("C*")
+        data << "\x00"
+        data << text.encode("ISO-8859-1").bytes.to_a.pack("C*")
+        new(data)
+      end
+
       ##
       #Returns a Text object
       def get_data
@@ -57,6 +69,40 @@ module Imgrb
       def self.type
         "iTXt"
       end
+
+      #Returns an international text chunk (iTXt)
+      #Input:
+      #* +language+ is a ISO-646 encoded string specifying the language
+      #* +keyword+ is a Latin-1 (ISO-8859-1) encoded string specifying the keyword (see add_text)
+      #* +translated_keyword+ is a UTF-8 encoded string containing a translation of the keyword into +language+
+      #* +text+ is a UTF-8 encoded string containing the text written in +language+
+      def self.assemble(language, keyword, translated_keyword, text, compressed = false)
+        language = language.encode("US-ASCII") #Technically alphanumeric ISO 646 with hyphens.
+        keyword = keyword.encode("ISO-8859-1")
+        translated_keyword = translated_keyword.encode("UTF-8")
+        text = text.encode("UTF-8")
+
+        kw_length = keyword.bytes.to_a.size
+        raise ArgumentError, "Keyword must be 1-79 bytes long" unless 1 <= kw_length && kw_length <= 79
+
+        if(compressed)
+          txt = PngMethods::deflate(text)
+          null_byte_compr_str = "\x00\x01\x00"
+        else
+          txt = text
+          null_byte_compr_str = "\x00\x00\x00"
+        end
+
+        data = keyword.bytes.to_a.pack("C*")
+        data << null_byte_compr_str
+        data << language.bytes.to_a.pack("C*")
+        data << "\x00"
+        data << translated_keyword.bytes.to_a.pack("C*")
+        data << "\x00"
+        data << txt.bytes.to_a.pack("C*")
+        new(data)
+      end
+
 
       ##
       #Returns a Text object
@@ -104,6 +150,19 @@ module Imgrb
         "zTXt"
       end
 
+      def self.assemble(keyword, text)
+        keyword_bytes = keyword.encode("ISO-8859-1").bytes.to_a
+        text = text.encode("ISO-8859-1")
+        kw_length = keyword.bytes.to_a.size
+        unless 1 <= kw_length && kw_length <= 79
+          raise ArgumentError, "Keyword must be 1-79 bytes long"
+        end
+        data = keyword_bytes.pack("C*")
+        data << "\x00\x00"
+        data << PngMethods::deflate(text)
+        new(data)
+      end
+
       ##
       #Returns a Text object
       def get_data
@@ -128,7 +187,7 @@ module Imgrb
       include AbstractChunk, Ancillary, Public, Unsafe
 
 
-      def self.assemble(date)
+      def self.assemble(date = Time.now.utc)
         data_bytes = [(date.year >> 8) & 0xFF, date.year & 0xFF]
         data_bytes << date.month
         data_bytes << date.day
@@ -151,7 +210,7 @@ module Imgrb
         #Year, Month, Day, Hour, Min, Sec, UTC
         return Time.new(year, data[2],
                   data[3], data[4],
-                  data[5], data[6], "+00:00")
+                  data[5], data[6], "UTC")
       end
     end
 
@@ -163,13 +222,21 @@ module Imgrb
     class ChunkgAMA
       include AbstractChunk, Ancillary, Public, Unsafe
 
+      def self.assemble(gamma)
+        gamma *= 100000.round
+        if gamma > 0xFFFFFFFF
+          raise ArgumentError, "Given gamma value is too large to store: #{gamma}."
+        end
+        new([gamma].pack("L>"))
+      end
+
       def self.type
         "gAMA"
       end
 
       def get_data
         gamma = @data[0..3].unpack("C*")
-        gamma = Shared::interpret_bytes_4(gamma)
+        gamma = Shared::interpret_bytes_4(gamma)/100000.0
         return gamma
       end
 
@@ -183,6 +250,10 @@ module Imgrb
     #intended physical dimensions of a pixel in width and height.
     class ChunkpHYs
       include AbstractChunk, Ancillary, Public, Safe
+
+      def self.assemble(xdim, ydim, unit)
+        new([xdim, ydim, unit].pack("L>L>C"))
+      end
 
       def self.type
         "pHYs"
@@ -219,6 +290,10 @@ module Imgrb
     class ChunkoFFs
       include AbstractChunk, Ancillary, Public, Safe
 
+      def self.assemble(xoff, yoff, unit)
+        new([xoff, yoff, unit].pack("l>l>C"))
+      end
+
       def self.type
         "oFFs"
       end
@@ -230,15 +305,7 @@ module Imgrb
       #* y-offset
       #* the unit (see png spec)
       def get_data
-        xoff = @data[0..3].unpack("C*")
-        xoff = Shared::interpret_bytes_4(xoff)
-        xoff = get_signed_value(xoff)
-
-        yoff = @data[4..7].unpack("C*")
-        yoff = Shared::interpret_bytes_4(yoff)
-        yoff = get_signed_value(yoff)
-
-        unit = @data[8].unpack("C*")[0]
+        xoff, yoff, unit = @data.unpack("l>l>C")
 
         if !(unit == 0 || unit == 1)
           warn "Unrecognised unit value for oFFs chunk: #{unit}."
@@ -251,15 +318,6 @@ module Imgrb
         :after_IHDR
       end
 
-      private
-      def get_signed_value(n)
-        if n.to_s(2).length == 32 #If sign bit set
-          return n.to_s(2)[1..-1].to_i(2)*(-1)
-        else
-          return n
-        end
-      end
-
     end
 
 
@@ -268,6 +326,20 @@ module Imgrb
     #background color of the image.
     class ChunkbKGD
       include AbstractChunk, Ancillary, Public, Unsafe
+
+      ##
+      #For non-indexed images, +assemble+ takes one argument for grayscale and
+      #three arguments for rgb. For indexed images, assemble takes to arugments,
+      #namely the palette index as the first one, followed by :indexed.
+      def self.assemble(*col)
+        if col.size == 1 || col.size == 3
+          new(col.pack("S>*"))
+        elsif col.size == 2 && col[1] == :indexed && col[0] < 256
+          new([col[0]].pack("C"))
+        else
+          raise ArgumentError, "Invalid background color: #{col}"
+        end
+      end
 
       def self.type
         "bKGD"
@@ -302,14 +374,30 @@ module Imgrb
     class ChunktRNS
       include AbstractChunk, Ancillary, Public, Unsafe
 
+      def self.assemble(*trans_bytes)
+        if trans_bytes[-1] == :indexed
+          new(trans_bytes[0...-1].pack("C*"))
+        else
+          new(trans_bytes.pack("S>*"))
+        end
+      end
+
       def self.type
         "tRNS"
       end
 
       ##
-      #Returns array representing the transparency palette
-      def get_data
-        return @data.unpack("C*")
+      #Returns array representing the transparency palette. By default formatted
+      #as if the image is an indexed image. Pass :nonindexed if rgb or grayscale
+      #image.
+      def get_data(format = :indexed)
+        if format == :indexed
+          return @data.unpack("C*")
+        elsif format == :nonindexed
+          return @data.unpack("S>*")
+        else
+          raise ArgumentError, "Unexpected format #{format}"
+        end
       end
 
       def required_pos
@@ -492,7 +580,7 @@ module Imgrb
     #[ONLY USED INTERNALLY]
     #NEVER write to file. Do not register.
     #TODO: REMOVE!
-    class ChunkskIP
+    class ChunkskIP #:nodoc:
       include AbstractChunk, Ancillary, Private, Unsafe
 
       def self.type
@@ -514,6 +602,10 @@ module Imgrb
     #* number of loops
     class ChunkacTL
       include AbstractChunk, Ancillary, Private, Unsafe
+
+      def self.assemble(num_frames, num_plays)
+        new([num_frames, num_plays].pack("L>L>"))
+      end
 
       def self.type
         "acTL"
@@ -559,6 +651,16 @@ module Imgrb
         @dispose_op      = data[24].bytes.to_a[0]
         @blend_op        = data[25].bytes.to_a[0]
       end
+
+      def self.assemble(sequence_number, width, height, x_offset, y_offset,
+                        delay_num, delay_den, dispose_op, blend_op)
+        packed = [sequence_number, width, height, x_offset, y_offset,
+         delay_num, delay_den, dispose_op, blend_op].pack("L>L>L>L>L>S>S>CC")
+
+        new(packed)
+      end
+
+
 
       ##
       #Returns a Headers::PngHeader based on the chunk data
@@ -622,6 +724,10 @@ module Imgrb
     #number corresponding to a fcTL chunk
     class ChunkfdAT
       include AbstractChunk, Ancillary, Private, Unsafe
+
+      def self.assemble(sequence_number, data)
+        new([sequence_number].pack("L>") + data)
+      end
 
       def self.type
         "fdAT"

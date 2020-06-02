@@ -28,6 +28,13 @@ class ImgrbTest < Test::Unit::TestCase
     }.each(&block)
   end
 
+  def save_png_to_string(img, compression_level = 0)
+    png_io = StringIO.new
+    png_io.set_encoding(Encoding::BINARY)
+    img.save_to_file(png_io, :png, compression_level)
+    png_io.string
+  end
+
   ##
   #Tests loading all invalid png files in the suite. Should reading metadata
   #be allowed if the IDAT chunk is missing? Should there be an option to allow
@@ -238,6 +245,168 @@ class ImgrbTest < Test::Unit::TestCase
         end
       end
     end
+  end
+
+
+  def test_add_text
+    img = Imgrb::Image.new(10,10,[42,42,42])
+    keyword = "Comment"
+    keyword2 = "Copyright"
+    text = "This is a test!"
+    text2 = "© Foo Bar"
+    img.add_text(keyword, text)
+    img.add_text(keyword2, text2)
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert [keyword.encode("ISO-8859-1"), keyword2.encode("ISO-8859-1")].include? img_saved.texts[0].keyword
+      assert [keyword.encode("ISO-8859-1"), keyword2.encode("ISO-8859-1")].include? img_saved.texts[1].keyword
+      assert [text.encode("ISO-8859-1"), text2.encode("ISO-8859-1")].include? img_saved.texts[0].text
+      assert ([text.encode("ISO-8859-1"), text2.encode("ISO-8859-1")].include? img_saved.texts[1].text), "text: #{img_saved.texts[1].text} not present in the metadata"
+    end
+
+  end
+
+
+  def test_add_compressed_text
+    img = Imgrb::Image.new(10,10,[42,42,42])
+    keyword = "Comment"
+    keyword2 = "Copyright"
+    text = "This is a test! Longer comment to be compressed. ABCDEFGhijklmnop"
+    text2 = "© Foo Bar"
+    img.add_text(keyword, text, true)
+    img.add_text(keyword2, text2, true)
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert [keyword.encode("ISO-8859-1"), keyword2.encode("ISO-8859-1")].include? img_saved.texts[0].keyword
+      assert [keyword.encode("ISO-8859-1"), keyword2.encode("ISO-8859-1")].include? img_saved.texts[1].keyword
+      assert [text.encode("ISO-8859-1"), text2.encode("ISO-8859-1")].include? img_saved.texts[0].text
+      assert ([text.encode("ISO-8859-1"), text2.encode("ISO-8859-1")].include? img_saved.texts[1].text), "text: #{img_saved.texts[1].text} not present in the metadata"
+    end
+
+  end
+
+
+
+  def test_add_international_text
+    img = Imgrb::Image.new(10,10,[42,42,42])
+    language = "en-us"
+    language2 = "jp"
+    keyword = "Software"
+    keyword2 = "Software"
+    translated_keyword = "Software"
+    translated_keyword2 = "ソフトウェア"
+    text = "This is a test! Longer comment with Unicode Emoji 💬 to be compressed. ABCDEFGhijklmnop"
+    text2 = "Imgrb 💻"
+    img.add_international_text(language, keyword, translated_keyword, text, true)
+    img.add_international_text(language2, keyword2, translated_keyword2, text2, false)
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert [keyword.encode("UTF-8"), keyword2.encode("UTF-8")].include? img_saved.texts[0].keyword
+      assert [keyword.encode("UTF-8"), keyword2.encode("UTF-8")].include? img_saved.texts[1].keyword
+      assert [text.encode("UTF-8"), text2.encode("UTF-8")].include? img_saved.texts[0].text
+      assert ([text.encode("UTF-8"), text2.encode("UTF-8")].include? img_saved.texts[1].text), "text: #{img_saved.texts[1].text} not present in the metadata"
+    end
+
+  end
+
+
+  def test_add_time
+    img = Imgrb::Image.new(1,1,0)
+    time_chunk = Imgrb::Chunks::ChunktIME.assemble
+    time = time_chunk.get_data
+    img.add_chunk(time_chunk)
+
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert_equal time, img_saved.ancillary_chunks[:tIME][0].get_data
+    end
+  end
+
+  def test_add_gamma
+    img = Imgrb::Image.new(1,1,0)
+    gamma_chunk = Imgrb::Chunks::ChunkgAMA.assemble(0.00042)
+    img.add_chunk(gamma_chunk)
+
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert_equal 0.00042, img_saved.ancillary_chunks[:gAMA][0].get_data
+    end
+  end
+
+
+  def test_add_phys_dim
+    img = Imgrb::Image.new(1,1,0)
+    phys_chunk = Imgrb::Chunks::ChunkpHYs.assemble(1,2,0)
+    img.add_chunk(phys_chunk)
+
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert_equal 1, img_saved.ancillary_chunks[:pHYs][0].get_data[0]
+      assert_equal 2, img_saved.ancillary_chunks[:pHYs][0].get_data[1]
+      assert_equal 0, img_saved.ancillary_chunks[:pHYs][0].get_data[2]
+    end
+  end
+
+  def test_add_offset
+    img = Imgrb::Image.new(1,1,0)
+    offset_chunk = Imgrb::Chunks::ChunkoFFs.assemble(-42,99,1)
+    img.add_chunk(offset_chunk)
+
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      assert_equal (-42), img_saved.ancillary_chunks[:oFFs][0].get_data[0]
+      assert_equal 99, img_saved.ancillary_chunks[:oFFs][0].get_data[1]
+      assert_equal 1, img_saved.ancillary_chunks[:oFFs][0].get_data[2]
+    end
+  end
+
+
+  def test_add_background
+    img = Imgrb::Image.new(1,1,0)
+    background_chunk = Imgrb::Chunks::ChunkbKGD.assemble(0)
+    img.add_chunk(background_chunk)
+
+    img2 = Imgrb::Image.new(1,1,[20,20,20,0])
+    background_chunk = Imgrb::Chunks::ChunkbKGD.assemble(0,5,100)
+    img2.add_chunk(background_chunk)
+
+    2.times do |compression_level|
+      png_str = save_png_to_string(img, compression_level)
+      img_saved = Imgrb::Image.new(png_str, :from_string)
+
+      png_str = save_png_to_string(img2, compression_level)
+      img_saved2 = Imgrb::Image.new(png_str, :from_string)
+
+      assert_equal [0], img_saved.background_color
+      assert_equal [0,5,100], img_saved2.background_color
+    end
+  end
+
+  #TODO: FIX tRNS chunk behavior for non-indexed images (saving is fine, reading
+  #is not)
+  def test_add_transparency_chunk
+    img = Imgrb::Image.new(41,41,0)
+    transparency_chunk = Imgrb::Chunks::ChunktRNS.assemble(0,:indexed)
+    img.add_chunk(transparency_chunk)
+
+    png_str = save_png_to_string(img, 1)
+    img_saved = Imgrb::Image.new(png_str, :from_string)
+
+    assert img_saved.has_alpha?
   end
 
 end
