@@ -212,6 +212,19 @@ module Imgrb
     end
 
     ##
+    #Returns length of animation in seconds
+    def animation_time
+      raise Exceptions::AnimationError, "a static image does not have an animation time" unless animated?
+      time = 0
+      @ancillary_chunks[:fcTL].each do |frame_control|
+        frame_time = Rational(frame_control.delay_num , frame_control.delay_den)
+        time += frame_time
+      end
+
+      return time.to_f
+    end
+
+    ##
     #Forward the animation one frame. Note that the first time this is called,
     #this may take a much longer time than normal (specifically for manually
     #generated animations, i.e. using push_frame etc.).

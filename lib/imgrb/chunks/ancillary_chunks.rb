@@ -638,7 +638,8 @@ module Imgrb
     #* blend operation
     class ChunkfcTL
       include AbstractChunk, Ancillary, Private, Unsafe
-      attr_reader :sequence_number, :width, :height, :x_offset, :y_offset
+      attr_reader :sequence_number, :width, :height, :x_offset, :y_offset,
+                  :delay_num, :delay_den
       def initialize(data, pos)
         super(data, pos)
         @sequence_number = Shared::interpret_bytes_4(data[0..3].unpack("C*"))
