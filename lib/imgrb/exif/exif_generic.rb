@@ -44,8 +44,16 @@ module Imgrb
         if self.class.field_name
           self.class.field_name
         else
-          "UNKNOWN (tag:#{@tag_number}, type:#{@type.to_s}, pack_str:#{@pack_str})"
+          "UNKNOWN (tag:#{tag_number}, type:#{@type.to_s}, pack_str:#{@pack_str})"
         end
+      end
+
+      def self.possible_IFDs
+        ["IFD0", "IFD1"]
+      end
+
+      def self.tag
+        raise NotImplementedError, "The class method 'tag' must be defined."
       end
     end
 

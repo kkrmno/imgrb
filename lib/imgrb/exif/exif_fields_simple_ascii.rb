@@ -6,32 +6,41 @@ module Imgrb
       def self.field_name
         "Make"
       end
+
+      def self.tag
+        271
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 271, MakeField)
 
     class ModelField < GenericSingleAsciiField
       def self.field_name
         "Model"
       end
+
+      def self.tag
+        272
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 272, ModelField)
 
     class SoftwareField < GenericSingleAsciiField
       def self.field_name
         "Software"
       end
+
+      def self.tag
+        305
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 305, SoftwareField)
 
     class ArtistField < GenericSingleAsciiField
       def self.field_name
         "Artist"
       end
+
+      def self.tag
+        315
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 315, ArtistField)
-
-
-
 
 
 
@@ -41,15 +50,34 @@ module Imgrb
       def self.field_name
         "ExifVersion"
       end
+
+      def self.tag
+        36864
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
     end
-    register_exif_field(["ExifIFD"], 36864, ExifVersionField)
 
     class FlashpixVersionField < GenericSingleAsciiNZField
       def self.field_name
         "FlashpixVersion"
       end
-    end
-    register_exif_field(["ExifIFD"], 40960, FlashpixVersionField)
 
+      def self.tag
+        40960
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
+    end
+
+
+
+    register_exif_fields(MakeField, ModelField, SoftwareField, ArtistField,
+                         ExifVersionField, FlashpixVersionField)
+                         
   end
 end

@@ -50,8 +50,9 @@ class ImgrbTest < Test::Unit::TestCase
           Imgrb::Image.new(file_path)
         end
 
-        #Reading only metadata should not(?) raise an error if IDAT chunk is
-        #missing.
+        #Reading only metadata should not raise an error if IDAT chunk is
+        #missing. Maybe try harder to extract metadata from other invalid files
+        #as well.
         if @parameter == "dt"
           assert_nothing_raised do
             Imgrb::Image.new(file_path, :only_metadata)

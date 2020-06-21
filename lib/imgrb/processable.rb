@@ -532,12 +532,20 @@ module Imgrb::BitmapModule
     #channels of the original image, specifying the threshold for each channel.
     alias threshold is_greater
 
+    def is_greater_or_equal(img_to_compare)
+      return is_compared(img_to_compare, :greater_or_equal)
+    end
+
     ##
     #Compares against another image of equal size and returns a new image which,
     #for each channel, is 1 where this image is lesser than the other, 0
     #otherwise
     def is_lesser(img_to_compare)
       return is_compared(img_to_compare, :lesser)
+    end
+
+    def is_lesser_or_equal(img_to_compare)
+      return is_compared(img_to_compare, :lesser_or_equal)
     end
 
     ##
@@ -573,6 +581,33 @@ module Imgrb::BitmapModule
     end
 
     alias map_channels_to_image collect_channels_to_image
+
+
+    ##
+    #Invokes the given block once for each pixel of the image. Creates a new
+    #image containing the pixels returned by the block.
+    #The block must return a pixel with as many channels as the original image.
+    #Example:
+    # #Returns a new image where the values of the green channel are halved
+    # img_halved_green = img.collect_to_image do |pxl|
+    #   new_pxl = pxl
+    #   new_pxl[1] = (new_pxl[1]/2.0).round
+    #   new_pxl
+    # end
+    def collect_to_image &block
+      return to_enum(__method__) unless block_given?
+      img = Imgrb::Image.new(self.width, self.height, [0]*self.channels)
+      self.each_with_coord do |val, x, y|
+        pxl = block.call(val)
+        img[y, x] = pxl
+      end
+
+      img
+    end
+
+    alias collect_pixels_to_image collect_to_image
+    alias map_to_image collect_to_image
+    alias map_pixels_to_image collect_to_image
 
 
 
@@ -611,13 +646,17 @@ module Imgrb::BitmapModule
       res_image = Imgrb::Image.new(self.width, self.height, 0)
       image.each_with_coord do |val, x, y|
         if relation == :greater
-          holds = val > comp_image[y][x]
+          holds = val > comp_image[y, x]
+        elsif relation == :greater_or_equal
+          holds = val >= comp_image[y, x]
         elsif relation == :lesser
-          holds = val < comp_image[y][x]
+          holds = val < comp_image[y, x]
+        elsif relation == :lesser_or_equal
+          holds = val <= comp_image[y, x]
         elsif relation == :equal
-          holds = val == comp_image[y][x]
+          holds = val == comp_image[y, x]
         end
-        res_image[y][x] = 1 if holds
+        res_image[y, x] = 1 if holds
       end
       return res_image
     end

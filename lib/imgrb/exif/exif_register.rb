@@ -11,7 +11,10 @@ module Imgrb
     #Example:
     # register_exif_field([ifd0, ifd1, ifd_gps], tag_number, field_class_name)
     # register_exif_field(ifd0, tag_number, field_class_name)
-    def self.register_exif_field(ifds, tag, klass)
+    def self.register_exif_field(klass)
+
+      ifds = Array(klass.possible_IFDs)
+      tag = klass.tag
 
       name_to_check = klass.field_name
       if ["IFD0", "IFD1"].include? name_to_check
@@ -27,6 +30,10 @@ module Imgrb
         end
         @registered_exif_fields[ifd][tag] = klass
       end
+    end
+
+    def self.register_exif_fields(*klasses)
+      klasses.each{|klass| register_exif_field(klass)}
     end
 
     def self.get_exif_field(ifd_name, tag_id)

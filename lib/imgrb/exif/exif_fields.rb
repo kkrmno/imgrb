@@ -7,24 +7,31 @@ module Imgrb
       def self.field_name
         "ImageWidth"
       end
+
+      def self.tag
+        256
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 256, ImageWidthField)
 
     class ImageLengthField < GenericSingleValueField
       def self.field_name
         "ImageLength"
       end
-    end
-    register_exif_field(["IFD0", "IFD1"], 257, ImageLengthField)
 
+      def self.tag
+        257
+      end
+    end
 
     class OrientationField < GenericSingleValueField
       def self.field_name
         "Orientation"
       end
-    end
-    register_exif_field(["IFD0", "IFD1"], 274, OrientationField)
 
+      def self.tag
+        274
+      end
+    end
 
     class XResolutionField < GenericField
       def get_data
@@ -34,8 +41,11 @@ module Imgrb
       def self.field_name
         "XResolution"
       end
+
+      def self.tag
+        282
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 282, XResolutionField)
 
     class YResolutionField < GenericField
       def get_data
@@ -45,8 +55,11 @@ module Imgrb
       def self.field_name
         "YResolution"
       end
+
+      def self.tag
+        283
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 283, YResolutionField)
 
     class ResolutionUnitField < GenericField
       def get_data
@@ -64,8 +77,11 @@ module Imgrb
       def self.field_name
         "ResolutionUnit"
       end
+
+      def self.tag
+        296
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 296, ResolutionUnitField)
 
     class YCbCrPositioningField < GenericField
       def get_data
@@ -83,8 +99,11 @@ module Imgrb
       def self.field_name
         "YCbCrPositioning"
       end
+
+      def self.tag
+        531
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 531, YCbCrPositioningField)
 
     class CopyrightField < GenericField
       #May contain multiple null separated strings. First string should be
@@ -105,18 +124,21 @@ module Imgrb
       def self.field_name
         "Copyright"
       end
-    end
-    register_exif_field(["IFD0", "IFD1"], 33432, CopyrightField)
 
+      def self.tag
+        33432
+      end
+    end
 
     class ExifIFDField < GenericIFDPointerField
       def self.field_name
         "ExifIFD"
       end
+
+      def self.tag
+        34665
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 34665, ExifIFDField)
-
-
 
     class ComponentsConfigurationField < GenericField
       def get_data
@@ -138,8 +160,15 @@ module Imgrb
       def self.field_name
         "ComponentsConfiguration"
       end
+
+      def self.tag
+        37121
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
     end
-    register_exif_field(["ExifIFD"], 37121, ComponentsConfigurationField)
 
     class FlashField < GenericField
       def get_data
@@ -177,8 +206,15 @@ module Imgrb
       def self.field_name
         "Flash"
       end
+
+      def self.tag
+        37385
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
     end
-    register_exif_field(["ExifIFD"], 37385, FlashField)
 
     class UserCommentField < GenericField
       def get_data
@@ -209,9 +245,15 @@ module Imgrb
       def self.field_name
         "UserComment"
       end
-    end
-    register_exif_field(["ExifIFD"], 37510, UserCommentField)
 
+      def self.tag
+        37510
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
+    end
 
     class ColorSpaceField < GenericField
       def get_data
@@ -228,20 +270,33 @@ module Imgrb
       def self.field_name
         "ColorSpace"
       end
+
+      def self.tag
+        40961
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
     end
-    register_exif_field(["ExifIFD"], 40961, ColorSpaceField)
-
-
 
     class GPSIFDField < GenericIFDPointerField
       def self.field_name
         "GPS_IFD"
       end
+
+      def self.tag
+        34853
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 34853, GPSIFDField)
 
 
 
+    register_exif_fields(ImageWidthField, ImageLengthField, OrientationField,
+                         XResolutionField, YResolutionField, ResolutionUnitField,
+                         YCbCrPositioningField, CopyrightField, ExifIFDField,
+                         ComponentsConfigurationField, FlashField,
+                         UserCommentField, ColorSpaceField, GPSIFDField)
 
   end
 end

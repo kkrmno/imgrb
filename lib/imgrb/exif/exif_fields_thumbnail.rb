@@ -16,23 +16,39 @@ module Imgrb
       def self.field_name
         "Compression"
       end
-    end
-    register_exif_field(["IFD0", "IFD1"], 259, CompressionField)
 
+      def self.tag
+        259
+      end
+    end
 
     class JPEGInterchangeFormatField < GenericSingleValueField
       def self.field_name
         "JPEGInterchangeFormat"
       end
+
+      def self.tag
+        513
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 513, JPEGInterchangeFormatField)
 
     class JPEGInterchangeFormatLengthField < GenericSingleValueField
       def self.field_name
         "JPEGInterchangeFormatLength"
       end
+
+      def self.tag
+        514
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 514, JPEGInterchangeFormatLengthField)
+
+
+
+    register_exif_fields(CompressionField, JPEGInterchangeFormatField, JPEGInterchangeFormatLengthField)
+
+  
+    #End of Exif exif-fields
+    #=======================================
 
 
 

@@ -27,8 +27,11 @@ module Imgrb
       def self.field_name
         "DateTime"
       end
+
+      def self.tag
+        306
+      end
     end
-    register_exif_field(["IFD0", "IFD1"], 306, DateTimeField)
 
     ##
     #Same as DateTimeField, but may have a different time and signifies specifically
@@ -37,8 +40,15 @@ module Imgrb
       def self.field_name
         "DateTimeOriginal"
       end
+
+      def self.tag
+        36867
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
     end
-    register_exif_field("ExifIFD", 36867, DateTimeOriginalField)
 
     ##
     #Same as DateTimeField, but may have a different time and signifies specifically
@@ -47,9 +57,17 @@ module Imgrb
       def self.field_name
         "DateTimeDigitized"
       end
+
+      def self.tag
+        36868
+      end
+
+      def self.possible_IFDs
+        "ExifIFD"
+      end
     end
-    register_exif_field("ExifIFD", 36868, DateTimeDigitizedField)
 
 
+    register_exif_fields(DateTimeField, DateTimeOriginalField, DateTimeDigitizedField)
   end
 end

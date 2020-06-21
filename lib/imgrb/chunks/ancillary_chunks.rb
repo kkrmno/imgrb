@@ -557,7 +557,7 @@ module Imgrb
           elsif field.class == Imgrb::Exif::JPEGInterchangeFormatLengthField
             @thumbnail_length = field.get_data
           else
-            #Store all attributes in IFD0, except pointers to IFDs
+            #Store all attributes in IFDs, except pointers to IFDs
             @exif_hash[field.field_name.to_sym] ||= []
             @exif_hash[field.field_name.to_sym] << field
           end
