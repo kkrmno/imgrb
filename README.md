@@ -94,6 +94,7 @@ Image credit: NASA
 
 
 After setting the alpha channel of the mars image to 180, overlaying the transparent foreground on top of the background yields:
+<br>
 ![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
 
 
@@ -183,9 +184,7 @@ In many cases, the file size of the animation can be kept smaller by making use 
 
 For illustration purposes we will iteratively generate a Sierpinski triangle as shown in the figure below:
 
-![apng output](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png)
-
-
+<a href="https://github.com/kkrmno/imgrb/wiki/Animating-Sierpinski-triangle"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png" alt="Sierpinski" width="400" /></a>
 
 We first set up a black 400x400 grayscale image with an alpha channel at full opacity
 
@@ -424,13 +423,13 @@ chunk properties such as ```safe?```, ```critical?```, and ```public?```.
 [The wiki](https://github.com/kkrmno/imgrb/wiki/Image-Gradient) shows an example of computing the image gradient and related information:
 
 <a href="https://github.com/kkrmno/imgrb/wiki/Image-Gradient">
-  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped.png" width="440">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped.png" width="400">
   <br>
-  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_x.png" width="440">
-  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_y.png" width="440">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_x.png" width="400">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_y.png" width="400">
   <br>
-  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_mag.png" width="440">
-  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_angles.png" width="440">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_grad_mag.png" width="400">
+  <img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/MET_music_lesson_cropped_angles.png" width="400">
 </a>
 
 <br>
