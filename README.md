@@ -87,16 +87,16 @@ The `add_text` method expects Latin-1 (ISO-8859-1) characters. If you need to st
 See details on the iTXt chunk here: https://www.w3.org/TR/2003/REC-PNG-20031110/#11iTXt
 
 ### Overlay transparent image on background image
-![background](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_earth_small.png)
-![foreground](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_mars_small.png)
+<a href="https://github.com/kkrmno/imgrb/wiki/Alpha-blending"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_earth_small.png" alt="Background Earth" /></a>
+<a href="https://github.com/kkrmno/imgrb/wiki/Alpha-blending"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/nasa_mars_small.png" alt="Foreground Mars" /></a>
 
 Image credit: NASA
 
 
 After setting the alpha channel of the mars image to 180, overlaying the transparent foreground on top of the background yields:
 <br>
-![overlaid](https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png)
 
+<a href="https://github.com/kkrmno/imgrb/wiki/Alpha-blending"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/earth_mars_overlay.png" alt="Overlaid: Mars/Earth" /></a>
 
 ```ruby
 
@@ -264,7 +264,7 @@ at the end, save the animated png. Note the use of the blend operation :over use
 
   #Add a comment describing the image.
   image_0.add_text("Comment",
-                   "An animated png illustrating an iterated approach to constructing the Sierpinski triangle.")
+                   "Animated png illustrating an iterated approach to constructing the Sierpinski triangle.")
 
   image_0.save("animated_sierpinski.png")
 ```
