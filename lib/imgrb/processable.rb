@@ -611,6 +611,38 @@ module Imgrb::BitmapModule
 
 
 
+    ##
+    #Invokes the given block once for each pixel of the image with its associated
+    #coordinates (x, y).
+    #Creates a new image containing the pixels returned by the block.
+    #The block must return a pixel with as many channels as the original image.
+    #Example:
+    # #Returns a new image where the values of the red channel grow with x and
+    # #the values of the green channel grow with y (mod 256), while keeping the
+    # #blue channel.
+    # img_red_green_coords = img.collect_to_image_with_coord do |pxl, x, y|
+    #   new_pxl = pxl
+    #   new_pxl[0] = x%256
+    #   new_pxl[1] = y%256
+    #   new_pxl
+    # end
+    def collect_to_image_with_coord &block
+      return to_enum(__method__) unless block_given?
+      img = Imgrb::Image.new(self.width, self.height, [0]*self.channels)
+      self.each_with_coord do |val, x, y|
+        pxl = block.call(val, x, y)
+        img[y, x] = pxl
+      end
+
+      img
+    end
+
+    alias collect_pixels_to_image_with_coord collect_to_image_with_coord
+    alias map_to_image_with_coord collect_to_image_with_coord
+    alias map_pixels_to_image_with_coord collect_to_image_with_coord
+
+
+
 
 
 

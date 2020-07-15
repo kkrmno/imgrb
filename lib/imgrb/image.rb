@@ -167,28 +167,30 @@ module Imgrb
       @animation_frames_cached = false
 
       #Needs testing for indexed apng images!
-      if apng? && !@only_metadata
+      if apng?
+        n_frames, n_plays = @ancillary_chunks[:acTL][0].get_data
+        @header = @header.to_apng_header(n_frames, n_plays, @bitmap)
         # warn "This seems to be an apng file (animated png). This extension to "\
         #      "the png format is not supported. The data is treated as a "\
         #      "normal png file. Thus, only a single image will be loaded. This "\
         #      "is often the first frame of the animation, but may also be a "\
         #      "default image that has been included in the file "\
         #      "for decoders that do not handle the extension."
-        @animation_frames = []
-        n_frames, n_plays = @ancillary_chunks[:acTL][0].get_data
-        @header = @header.to_apng_header(n_frames, n_plays, @bitmap)
-        frame_control_chunks = @ancillary_chunks[:fcTL]
-        frame_data_chunks = @ancillary_chunks[:fdAT]
-        #If IDAT is first frame of animation
-        if frame_control_chunks[0].pos == :after_IHDR || frame_control_chunks[0].pos == :after_PLTE
-          @animation_frames[1..-1] = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks[1..-1], frame_data_chunks, @apng_palette, @apng_transparency_palette)
-          depalette
-          @animation_frames[0] = [frame_control_chunks[0], Image.new(@bitmap.rows, @header.image_type)]
-        else #If IDAT is not first frame of animation
-          @animation_frames = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks, frame_data_chunks, @apng_palette, @apng_transparency_palette)
-        end
+        if !@only_metadata
+          @animation_frames = []
+          frame_control_chunks = @ancillary_chunks[:fcTL]
+          frame_data_chunks = @ancillary_chunks[:fdAT]
+          #If IDAT is first frame of animation
+          if frame_control_chunks[0].pos == :after_IHDR || frame_control_chunks[0].pos == :after_PLTE
+            @animation_frames[1..-1] = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks[1..-1], frame_data_chunks, @apng_palette, @apng_transparency_palette)
+            depalette
+            @animation_frames[0] = [frame_control_chunks[0], Image.new(@bitmap.rows, @header.image_type)]
+          else #If IDAT is not first frame of animation
+            @animation_frames = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks, frame_data_chunks, @apng_palette, @apng_transparency_palette)
+          end
 
-        @animation_frames_cached = true
+          @animation_frames_cached = true
+        end
       end
 
       depalette if @header.paletted?
