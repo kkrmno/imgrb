@@ -1771,13 +1771,12 @@ module Imgrb
 
     def check_legal_position_of_chunk(previous_crit_chunk, chunk)
       if previous_crit_chunk == "IEND"
-        raise Imgrb::Exceptions::ChunkError, "#{chunk.type} found after IEND."
+        raise Imgrb::Exceptions::ChunkError, "#{chunk} found after IEND."
       end
       case chunk
       when "IHDR"
         unless previous_crit_chunk == ""
-          raise Imgrb::Exceptions::ChunkError, "IHDR at position #{chunk.pos} "\
-                                               "is not first."
+          raise Imgrb::Exceptions::ChunkError, "IHDR at invalid position"
         end
       when "PLTE"
         unless previous_crit_chunk == "IHDR"
@@ -1857,21 +1856,30 @@ module Imgrb
       #if PngMethods::known_ancillary_chunk?(chunk)
         if chunk.type == "bKGD"
           bgc = chunk.get_data
-          if @header.grayscale?
-            @background_color = PngMethods::read_grayscale(@header, [[bgc]])[0]
-          elsif @header.paletted?
-            bg_col_bitmap = BitmapModule::Bitmap.new(self, [[bgc]])
-            bg_col_bitmap.palette = @bitmap.palette
-            @background_color = PngMethods::depalette(bg_col_bitmap)[0]
-            #Background color should not have alpha
-            #(possible side effect of depalette).
-            #@background_color.pop if has_alpha?
+
+          if (@header.grayscale? || @header.paletted?) && Array(bgc).size != 1 ||
+            !(@header.grayscale? || @header.paletted?) && Array(bgc).size != 3
+
+              @background_color = []
+              warn "Invalid bKGD chunk (#{bgc}) for image format."
           else
-            @background_color = bgc
+
+            if @header.grayscale?
+                @background_color = PngMethods::read_grayscale(@header, [[bgc]])[0]
+            elsif @header.paletted?
+                bg_col_bitmap = BitmapModule::Bitmap.new(self, [[bgc]])
+                bg_col_bitmap.palette = @bitmap.palette
+                @background_color = PngMethods::depalette(bg_col_bitmap)[0]
+                #Background color should not have alpha
+                #(possible side effect of depalette).
+                #@background_color.pop if has_alpha?
+            else
+                @background_color = bgc
+            end
+            #May confuse things, since background color may be changed for the
+            #image without affecting this chunk (at the moment at least).
+            #@ancillary_chunks[:known] << chunk
           end
-          #May confuse things, since background color may be changed for the
-          #image without affecting this chunk (at the moment at least).
-          #@ancillary_chunks[:known] << chunk
         elsif chunk.type == "tRNS"
           if @header.has_alpha?
             warn "tRNS chunk not expected in "\

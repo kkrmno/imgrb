@@ -58,6 +58,14 @@ module Imgrb
       def get_data
         return @data.unpack("C*")
       end
+
+      private
+      def when_read(data)
+        #Should also check that size does not exceed maximum (depends on image type)
+        if data.size < 1
+          raise Exceptions::ChunkError, "The palette chunk is empty"
+        end
+      end
     end
 
     #Instances of this class represent IEND chunks. This chunk must appear last

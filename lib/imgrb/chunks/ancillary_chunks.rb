@@ -42,7 +42,14 @@ module Imgrb
       #Returns a Text object
       def get_data
         null_byte = @data.index(0.chr)
+        if null_byte.nil?
+          warn "Invalid tEXt chunk! Missing null byte."
+          return Imgrb::Text.new("", @data)
+        end
         keyword = @data[0...null_byte]
+        if keyword.length < 1 || keyword.length > 79
+          warn "Keyword length is outside proper bounds of 1-79 bytes"
+        end
         text = @data[null_byte+1..-1]
 
         return Imgrb::Text.new(keyword, text)
@@ -113,7 +120,15 @@ module Imgrb
         data = @data
 
         null_byte = data.index(0.chr)
+        if null_byte.nil?
+          warn "Invalid iTXt chunk! Missing null byte."
+          return nil
+        end
         keyword = data[0...null_byte]
+
+        if keyword.length < 1 || keyword.length > 79
+          warn "Keyword length is outside proper bounds of 1-79 bytes"
+        end
 
 
         compressed = data[null_byte+1].getbyte(0) == 1
@@ -167,7 +182,14 @@ module Imgrb
       #Returns a Text object
       def get_data
         null_byte = @data.index(0.chr)
+        if null_byte.nil?
+          warn "Invalid zTXt chunk! Missing null byte."
+          return nil
+        end
         keyword = @data[0...null_byte]
+        if keyword.length < 1 || keyword.length > 79
+          warn "Keyword length is outside proper bounds of 1-79 bytes"
+        end
         compression_method = @data[null_byte+1].getbyte(0)
         if compression_method != 0
           warn "Unknown compression method "\
@@ -463,12 +485,15 @@ module Imgrb
           #IFD 1 records thumbnail image
           # puts "HANDLING IFD 0"
           offset_to_ifd0 = data[4..7].unpack(@pack_str.upcase)[0]
+          # puts "HANDLING IFD0"
           offset_to_ifd1 = collect_fields_in_IFD(offset_to_ifd0, "IFD0")
+          # puts "DONE WITH IFD0"
 
           #If there is a IFD 1, parse it.
           if offset_to_ifd1 != 0
             # puts "HANDLING IFD 1"
             offset_to_ifd2 = collect_fields_in_IFD(offset_to_ifd1, "IFD1")
+            # puts "DONE WITH IFD 1"
             warn "Exif contains unexpected IFD 2 at offset #{offset_to_ifd2} (ignored)" if offset_to_ifd2 != 0
           end
 
@@ -542,6 +567,11 @@ module Imgrb
 
         offset_to_next_ifd_field = data[offset+2+(num_ifd_fields)*12..offset+2+(num_ifd_fields)*12+3].unpack(@pack_str.upcase)[0]
 
+        if offset_to_next_ifd_field.nil?
+          warn "Invalid IFD size for #{ifd_name}"
+          offset_to_next_ifd_field = 0
+        end
+
         [offset_to_next_ifd_field, ifd_fields]
       end
 
@@ -551,12 +581,15 @@ module Imgrb
             offset_to_exif_ifd = field.get_data
             # puts "HANDLING #{field.field_name} IFD"
             offset_to_exif_ifd1 = collect_fields_in_IFD(offset_to_exif_ifd, field.field_name)
+            # puts "DONE WITH #{field.field_name} IFD"
             warn "Exif contains unexpected second #{field.field_name} IFD at offset #{offset_to_exif_ifd1} (ignored)" if offset_to_exif_ifd1 != 0
           elsif field.class == Imgrb::Exif::JPEGInterchangeFormatField
             @thumbnail_start = field.get_data
           elsif field.class == Imgrb::Exif::JPEGInterchangeFormatLengthField
             @thumbnail_length = field.get_data
           else
+            # puts "HANDLING #{field.field_name}"
+
             #Store all attributes in IFDs, except pointers to IFDs
             @exif_hash[field.field_name.to_sym] ||= []
             @exif_hash[field.field_name.to_sym] << field

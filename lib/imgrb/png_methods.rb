@@ -213,6 +213,9 @@ module Imgrb
             # puts "Row size in bytes: #{row_size}"
             # puts "Row size in bits: #{find_interlaced_row_size_in_bits(header, pass+1)}"
             row = i_image[passed...(passed+row_size)]
+            if row.nil?
+              raise Exceptions::ImageError, "Error in pass #{pass} while reading interlaced image."
+            end
             pass_filters[pass] << row[0]
             if header.bit_depth < 8
               bit_row_size = find_interlaced_row_size_in_bits(header, pass+1)
@@ -671,6 +674,9 @@ module Imgrb
       chunk_dat = read_chunk(8, 0, image_bytes,
                              skip_ancillary, skip_crc, "NONE")
       chunks = []
+      if chunk_dat[0].type != "IHDR"
+        raise Exceptions::ImageError, "First chunk of the png is not IHDR!"
+      end
       chunks << chunk_dat[0]
       read_at = chunk_dat[1]
       at_end = (chunk_dat[0].type == "IEND")
@@ -749,10 +755,12 @@ module Imgrb
           end
           return [chunk, end_of_chunk]
         else
-          raise Imgrb::Exceptions::ImageError, "Missing bytes."
+          raise Imgrb::Exceptions::ImageError, "Reached end of file while reading chunk."
         end
       else
-        raise Imgrb::Exceptions::ImageError, "Missing bytes."
+        warn "Missing IEND chunk? File may be corrupt. Attempting to repair."
+        chunk = Chunks::ChunkIEND.new("", chunk_rel_pos)
+        return [chunk, -1]
       end
     end
 

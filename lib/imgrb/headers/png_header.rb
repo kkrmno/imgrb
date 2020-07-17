@@ -223,7 +223,8 @@ module Imgrb::Headers
         raise Imgrb::Exceptions::HeaderError, "Width and height must be "\
                                               "greater than 0"
       elsif @filter_method != 0
-        raise Imgrb::Exceptions::HeaderError, "Filter method has to be 0"
+        raise Imgrb::Exceptions::HeaderError, "Filter method has to be 0 "\
+                                            "(#{@filter_method} not recognised)"
       elsif @interlace_method != Imgrb::PngConst::NOT_INTERLACED &&
             @interlace_method != Imgrb::PngConst::ADAM7
         raise Imgrb::Exceptions::HeaderError, "Interlace method has to be "\
