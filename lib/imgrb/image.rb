@@ -1694,10 +1694,18 @@ module Imgrb
       #Currently saving apng as paletted is a problem (the fdAT chunks need to
       #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
       compression_level = 0 if apng?
+
+      if compression_level > 0
+        copy_of_unrounded_image = self.copy
+        self.round!
+      end
       #When saving as palette alpha channel not retained at the moment.
       unless compression_level > 0 && PngMethods::try_palette_save(self, file, compression_level, 3000, skip_ancillary)
         PngMethods::save_png(self, @header.to_png_header,
                              file, compression_level, skip_ancillary)
+      end
+      if compression_level > 0
+        self.bitmap.rows = copy_of_unrounded_image.bitmap.rows
       end
     end
 
