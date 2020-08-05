@@ -9,6 +9,14 @@ module Imgrb
       def safe?
         return false
       end
+
+      ##
+      #Call to attempt to update chunk if changes to image have been made such
+      #that it is safe to copy the chunk to the updated png file.
+      #Returns true if successful, otherwise false.
+      def make_safe!
+        return false
+      end
     end
   end
 end

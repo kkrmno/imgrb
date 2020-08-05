@@ -983,7 +983,17 @@ module Imgrb
         |chunk_arr| #Contains all ancillary chunks of the same type
         chunk_arr.each do
           |chunk|
-          unless img.header.to_png_header.critical_changes_made? && !chunk.safe?
+          #TODO: Implement critical_changes_made?
+          if img.header.to_png_header.critical_changes_made? && !chunk.safe?
+            #If image data has been changed ancillary, unsafe chunks should be
+            #updated to be made safe to copy over to the modified image
+            #TODO: This should probably happen before saving (immediately when
+            #updating an image or making a copy and changing that copy)
+            safe_to_write = chunk.make_safe!
+          else
+            safe_to_write = true
+          end
+          if safe_to_write
             bytes = chunk.get_raw
             req_pos = chunk.required_pos
 

@@ -210,13 +210,7 @@ module Imgrb
 
 
       def self.assemble(date = Time.now.utc)
-        data_bytes = [(date.year >> 8) & 0xFF, date.year & 0xFF]
-        data_bytes << date.month
-        data_bytes << date.day
-        data_bytes << date.hour
-        data_bytes << date.min
-        data_bytes << date.sec
-        new(data_bytes.pack("C*"))
+        new(pack_time(date))
       end
 
       def self.type
@@ -234,6 +228,18 @@ module Imgrb
                   data[3], data[4],
                   data[5], data[6], "UTC")
       end
+
+      private
+      def self.pack_time(date)
+        data_bytes = [(date.year >> 8) & 0xFF, date.year & 0xFF]
+        data_bytes << date.month
+        data_bytes << date.day
+        data_bytes << date.hour
+        data_bytes << date.min
+        data_bytes << date.sec
+        data_bytes.pack("C*")
+      end
+
     end
 
     ##
@@ -245,7 +251,7 @@ module Imgrb
       include AbstractChunk, Ancillary, Public, Unsafe
 
       def self.assemble(gamma)
-        gamma *= 100000.round
+        gamma = (gamma*100000).round
         if gamma > 0xFFFFFFFF
           raise ArgumentError, "Given gamma value is too large to store: #{gamma}."
         end
@@ -256,16 +262,173 @@ module Imgrb
         "gAMA"
       end
 
+      ##
+      #Returns the gamma value as a float
+      #If gamma is 0 the chunk should be ignored
       def get_data
         gamma = @data[0..3].unpack("C*")
         gamma = Shared::interpret_bytes_4(gamma)/100000.0
         return gamma
       end
 
+      ##
+      #See https://www.w3.org/TR/2003/REC-PNG-20031110/#13Decoder-gamma-handling
+      #To apply gamma, compute:
+      #  img**decoding_exponent
+      #after dividing by maximal integer for given bit depth.
+      #If gamma is 0 this returns Infinity and should be ignored.
+      def get_decoding_exponent(display_exponent = 2.2)
+        gamma = get_data
+        return 1.0/(gamma * display_exponent)
+      end
+
       def required_pos
         :after_IHDR
       end
     end
+
+
+    ##
+    #Instances of this class represent cHRM chunks. This chunk specifies
+    #1931 CIE x, y chromaticities and white point.
+    #(See the PNG (Portable Network Graphics) Specification,
+    #Version 1.2).
+    class ChunkcHRM
+      include AbstractChunk, Ancillary, Public, Unsafe
+
+      def self.assemble(white_x, white_y, red_x, red_y,
+                        green_x, green_y, blue_x, blue_y)
+
+        chr = [white_x, white_y, red_x, red_y, green_x, green_y, blue_x, blue_y]
+        chr = chr.collect{|c| (c*100000).round}
+        chr.each do |c|
+          if c > 0xFFFFFFFF
+            raise ArgumentError, "Given chromaticity value is too large to store: #{c}."
+          end
+        end
+        new(chr.pack("L>*"))
+      end
+
+      def self.type
+        "cHRM"
+      end
+
+      ##
+      #Returns the 1931 CIE x, y chromaticities of r, g, b display primaries
+      #and the white point as an arrray:
+      #
+      #  [white_x, white_y, red_x, red_y, green_x, green_y, blue_x, blue_y]
+      def get_data
+        white_x = Shared::interpret_bytes_4(@data[0..3].unpack("C*"))/100000.0
+        white_y = Shared::interpret_bytes_4(@data[4..7].unpack("C*"))/100000.0
+        red_x   = Shared::interpret_bytes_4(@data[8..11].unpack("C*"))/100000.0
+        red_y   = Shared::interpret_bytes_4(@data[12..15].unpack("C*"))/100000.0
+        green_x = Shared::interpret_bytes_4(@data[16..19].unpack("C*"))/100000.0
+        green_y = Shared::interpret_bytes_4(@data[20..23].unpack("C*"))/100000.0
+        blue_x  = Shared::interpret_bytes_4(@data[24..27].unpack("C*"))/100000.0
+        blue_y  = Shared::interpret_bytes_4(@data[28..31].unpack("C*"))/100000.0
+        return [white_x, white_y,
+                red_x, red_y,
+                green_x, green_y,
+                blue_x, blue_y]
+      end
+
+
+      def required_pos
+        :after_IHDR
+      end
+    end
+
+
+
+    ##
+    #Specifies original number of significant bits (for data originally using)
+    #a sample depth unsupported by png
+    class ChunksBIT
+      include AbstractChunk, Ancillary, Public, Unsafe
+
+      ##
+      #An array of values between 0 and 255. The number of elements should be
+      #equal to the number of channels.
+      #
+      #The values signify the number of significant bits per channel and should
+      #be less than or equal to the sample depth of the png and greater than 0.
+      def self.assemble(*sbits)
+
+        if sbits.size == 0 || sbits.size > 4
+          raise ArgumentError, "Incompatible number of channels specified for sBIT: #{sbits.size}"
+        end
+
+        sbits.each do |sbit|
+          if sbit > 0xFF || sbit < 0
+            raise ArgumentError, "Number of significant bits greater than sample depth: #{sbit}."
+          end
+        end
+
+        new(sbits.pack("C*"))
+      end
+
+      def self.type
+        "sBIT"
+      end
+
+      ##
+      #Returns the number of significant bits per channel in order.
+      def get_data
+        return @data.unpack("C*")
+      end
+
+
+      def required_pos
+        :after_IHDR
+      end
+    end
+
+
+
+    ##
+    #Specifies approximate usage frequency of each color in the palette (hIST
+    #chunks should only be present if the image has a PLTE chunk)
+    #There is one entry per palette entry. These are proportional to the
+    #fraction of pixels in the image with that palette index.
+    class ChunkhIST
+      include AbstractChunk, Ancillary, Public, Unsafe
+
+      ##
+      #An array of values between 0 and 65535. The number of elements should be
+      #equal to the number of palette entries.
+      def self.assemble(*hist)
+
+        if hist.size == 0 || hist.size > 256
+          raise ArgumentError, "Incompatible number of entries specified for hIST: #{hist.size}"
+        end
+
+        hist.each do |e|
+          if e > 0xFFFF || e < 0
+            raise ArgumentError, "hIST entries must be between 0 and 65535: #{e}."
+          end
+        end
+
+        new(hist.pack("S>*"))
+      end
+
+      def self.type
+        "hIST"
+      end
+
+      ##
+      #Returns the number of significant bits per channel in order.
+      def get_data
+        return @data.unpack("S>*")
+      end
+
+
+      def required_pos
+        :after_IHDR
+      end
+    end
+
+
 
     ##
     #Instances of this class represent pHYs chunks. This chunk specifies the
@@ -793,7 +956,7 @@ module Imgrb
                       ChunktEXt, ChunkiTXt, ChunkzTXt, ChunktIME,
                       ChunkgAMA, ChunkpHYs, ChunkoFFs, ChunkbKGD,
                       ChunktRNS, ChunkacTL, ChunkfcTL, ChunkfdAT,
-                      ChunkeXIf
+                      ChunkeXIf, ChunkcHRM, ChunksBIT, ChunkhIST
                    )
 
 

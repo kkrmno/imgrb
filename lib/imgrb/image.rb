@@ -319,6 +319,7 @@ module Imgrb
     def add_chunk(chunk_instance)
       type = chunk_instance.type.to_sym
       @ancillary_chunks[type] << chunk_instance
+      @ancillary_chunks
     end
 
     ##
@@ -826,27 +827,28 @@ module Imgrb
     #* a given row of a given channel as an array, e.g. get_channel(c, nil, row), or
     #* a given pixel of a given channel as an array/scalar, e.g. get_channel(c, col, row)
     def get_channel(c, col = nil, row = nil)
-      if c < 0 || c >= channels
+      num_channels = self.channels
+      if c < 0 || c >= num_channels
         raise ArgumentError, "Channel #{c} does not exist!"
       end
 
       if row.nil? && col.nil?
-        return self.copy if channels == 1 #Faster to just copy if selecting channel 0 of an image with a single channel
-        chn = []
-        @bitmap.rows.each do
-          |row|
-          chn << row.select.with_index{|e, i| i % channels == c}
+        return self.copy if num_channels == 1 #Faster to just copy if selecting channel 0 of an image with a single channel
+        chn = Array.new(self.height)
+        @bitmap.rows.each_with_index do
+          |row, row_idx|
+          chn[row_idx] = row.select.with_index{|e, i| i % num_channels == c}
         end
         return Image.new(chn,Imgrb::PngConst::GRAYSCALE)
       elsif col.nil?
         # if row > height - 1
           # raise IndexError, "Row #{row} is out of bounds!"
         # end
-        @bitmap.rows.fetch(row).select.with_index{|e, i| i % channels == c}
+        @bitmap.rows.fetch(row).select.with_index{|e, i| i % num_channels == c}
       else
         #Raise own exception when necessary to give sensible error message
         #(since col is multiplied and added to).
-        @bitmap.rows.fetch(row).fetch(col*channels+c){raise IndexError, "index #{col} outside of array bounds: #{-width}...#{width}"}
+        @bitmap.rows.fetch(row).fetch(col*num_channels+c){raise IndexError, "index #{col} outside of array bounds: #{-width}...#{width}"}
       end
     end
 
@@ -1696,6 +1698,10 @@ module Imgrb
       compression_level = 0 if apng?
 
       if compression_level > 0
+        #If compression level is 0, no filtering is attempted, so unrounded
+        #values are okay to use, since they are implicitly converted when packing
+
+        #TODO: Avoid copying
         copy_of_unrounded_image = self.copy
         self.round!
       end
@@ -1705,6 +1711,7 @@ module Imgrb
                              file, compression_level, skip_ancillary)
       end
       if compression_level > 0
+        #Restore the values before rounding
         self.bitmap.rows = copy_of_unrounded_image.bitmap.rows
       end
     end

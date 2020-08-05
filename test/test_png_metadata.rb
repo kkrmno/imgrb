@@ -65,6 +65,105 @@ class ImgrbTest < Test::Unit::TestCase
 
   end
 
+
+  ##
+  #Test reading and writing significant bits
+  def test_sbit_chunk
+
+    each_file_with_updated_info do
+      |file_path|
+
+      if @test_feature == "c" && @parameter[0] == "s"
+        img = Imgrb::Image.new(file_path, :only_metadata)
+        next if img.ancillary_chunks[:sBIT].size == 0
+        if img.header.bit_depth == 16
+          expected = [13,13,13]
+        else
+          expected = [@parameter[1].to_i]*3
+        end
+
+        assert_equal expected,
+                     img.ancillary_chunks[:sBIT][0].get_data
+      end
+    end
+
+
+
+    img = Imgrb::Image.new(10, 10, [255,155])
+    sbit_dat = [3,5]
+    sbit = Imgrb::Chunks::ChunksBIT.assemble(*sbit_dat)
+    img.add_chunk(sbit)
+
+    png_str = save_png_to_string(img)
+    img_saved = Imgrb::Image.new(png_str, :from_string)
+    sbit_dat_saved = img_saved.ancillary_chunks[:sBIT][0].get_data
+
+    assert_equal sbit_dat, sbit_dat_saved
+  end
+
+
+  ##
+  #Test reading and writing histogram entries
+  def test_hist_chunk
+
+    each_file_with_updated_info do
+      |file_path|
+
+      if @test_feature == "c" && @parameter[0] == "h"
+        img = Imgrb::Image.new(file_path, :only_metadata)
+
+        if @parameter[1].to_i == 1
+          assert_equal [64, 112, 48, 96, 96, 32, 32, 80, 16, 128, 64, 16, 48, 80, 112],
+                       img.ancillary_chunks[:hIST][0].get_data
+        else
+          assert_equal [4]*256, img.ancillary_chunks[:hIST][0].get_data
+        end
+      end
+    end
+
+
+
+    img = Imgrb::Image.new(10, 10, [255,155,10])
+    hist_dat = [10*10]
+    hist = Imgrb::Chunks::ChunkhIST.assemble(*hist_dat)
+    img.add_chunk(hist)
+
+    png_str = save_png_to_string(img, 1)
+    img_saved = Imgrb::Image.new(png_str, :from_string, :only_metadata)
+    hist_dat_saved = img_saved.ancillary_chunks[:hIST][0].get_data
+
+    assert_equal hist_dat, hist_dat_saved
+  end
+
+
+  ##
+  #Tests reading and writing chromaticity-values
+  def test_chrm_chunk
+
+    each_file_with_updated_info do
+      |file_path|
+
+      if @test_feature == "c" && @parameter[0] == "c"
+        img = Imgrb::Image.new(file_path, :only_metadata)
+        assert_equal [0.3127, 0.3290, 0.64, 0.33, 0.30, 0.60, 0.15, 0.06],
+                     img.ancillary_chunks[:cHRM][0].get_data
+      end
+    end
+
+
+    img = Imgrb::Image.new(10, 10, [255,155,55])
+    chrm_dat = [0.42, 0.32, 0.22, 0.11, 0.55, 0.44, 0.33, 0.22]
+    chrm = Imgrb::Chunks::ChunkcHRM.assemble(*chrm_dat)
+    img.add_chunk(chrm)
+
+    png_str = save_png_to_string(img)
+    img_saved = Imgrb::Image.new(png_str, :from_string)
+    chrm_dat_saved = img_saved.ancillary_chunks[:cHRM][0].get_data
+
+    assert_equal chrm_dat, chrm_dat_saved
+
+  end
+
   ##
   #Tests all png files with text metadata in the png suite.
   def test_png_text_metadata
@@ -187,6 +286,18 @@ class ImgrbTest < Test::Unit::TestCase
       end
 
     end
+
+    img = Imgrb::Image.new(1,1,255)
+    time = Time.new(2020, 1, 2, 3, 4, 5, "UTC")
+    time_chunk = Imgrb::Chunks::ChunktIME.assemble(time)
+    img.add_chunk(time_chunk)
+    png_str = save_png_to_string(img)
+
+    img_saved = Imgrb::Image.new(png_str, :from_string)
+    time_saved = img_saved.ancillary_chunks[:tIME][0].get_data
+
+    assert_equal time, time_saved
+
 
   end
 

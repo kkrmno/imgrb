@@ -710,9 +710,14 @@ module Imgrb::BitmapModule
 
     def dilate_gray(image, structuring_element, reflect)
       #TODO: Optimize!
-      dilated_image = Imgrb::Image.new(image.width, image.height, 0)
+      img_width = image.width
+      img_height = image.height
+      # dilated_image = Imgrb::Image.new(img_width, img_height, 0)
+      # dilated_rows = dilated_image.bitmap.rows
       se_x_off = structuring_element.width/2
       se_y_off = structuring_element.height/2
+
+      image_rows = image.bitmap.rows
 
       if reflect
         reflect_mult = -1
@@ -720,24 +725,28 @@ module Imgrb::BitmapModule
         reflect_mult = 1
       end
 
-      image.height.times do |y|
-        image.width.times do |x|
+      image.collect_to_image_with_coord do |_, x, y|
+      # image.height.times do |y|
+      #   image.width.times do |x|
           dil_val = -Float::INFINITY
           structuring_element.each_with_coord do |val, se_x, se_y|
             next if val == -Float::INFINITY
             img_x = reflect_mult*(se_x - se_x_off) + x
             img_y = reflect_mult*(se_y - se_y_off) + y
-            next if img_x < 0 || img_x >= image.width || img_y < 0 || img_y >= image.height
+            next if img_x < 0 || img_x >= img_width || img_y < 0 || img_y >= img_height
 
-            img_val_nf = image[img_y, img_x] + val
+            img_val_nf = image_rows[img_y][img_x] + val
             dil_val = img_val_nf if img_val_nf > dil_val
           end
 
-          dilated_image[y, x] = dil_val
-        end
+          # dilated_image[y, x] = dil_val
+          # dilated_rows[y][x] = dil_val
+          dil_val
+      #   end
+      # end
       end
 
-      return dilated_image
+      # return dilated_image
     end
 
 

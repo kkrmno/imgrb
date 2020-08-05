@@ -46,7 +46,7 @@ module Imgrb::Headers
     #Convert to another color type
     def to_color_type(new_col_type, bitmap)
       rows = bitmap.rows
-      @critical_changes_made = true unless new_col_type == @image_type
+      # @critical_changes_made = true unless new_col_type == @image_type
       if @image_type == Imgrb::PngConst::INDEXED &&
          (new_col_type == Imgrb::PngConst::TRUECOLOR ||
           new_col_type == Imgrb::PngConst::TRUECOLOR_ALPHA)
