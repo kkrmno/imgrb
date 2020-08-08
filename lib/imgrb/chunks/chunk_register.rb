@@ -3,6 +3,8 @@ module Imgrb
 
     @registered_chunks = {}
 
+    ##
+    #Returns the chunk Class object corresponding to the given +name+
     def self.get_chunk_class(name)
       @registered_chunks[name]
     end

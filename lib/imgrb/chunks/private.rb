@@ -5,8 +5,9 @@ module Imgrb
     #Chunks that are user defined (not following
     #officially registered specification) must
     #be private (and thus should include this module).
+    #All classes of private chunks should include this module!
     module Private
-      def public?
+      def public? #:nodoc:
         return false
       end
     end

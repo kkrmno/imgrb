@@ -37,7 +37,7 @@ Supports creating and writing png, apng, and bmp images.
 
 ```ruby
 
-  image = Imgrb::Image.new("img.png", :only_metadata => true)
+  image = Imgrb::Image.new("img.png", :only_metadata)
   image.report
 ```
 

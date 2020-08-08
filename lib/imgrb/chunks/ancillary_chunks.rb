@@ -26,6 +26,10 @@ module Imgrb
         "tEXt"
       end
 
+      #Returns a text chunk (tEXt)
+      #Input:
+      #* +keyword+ is a Latin-1 (ISO-8859-1) encoded string specifying the keyword (see above)
+      #* +text+ is a Latin-1 (ISO-8859-1) encoded string related to the keyword
       def self.assemble(keyword, text)
         keyword_bytes = keyword.encode("ISO-8859-1").bytes.to_a
         kw_length = keyword.bytes.to_a.size
@@ -165,6 +169,10 @@ module Imgrb
         "zTXt"
       end
 
+      #Returns a compressed text chunk (zTXt)
+      #Input:
+      #* +keyword+ is a Latin-1 (ISO-8859-1) encoded string specifying the keyword (see add_text)
+      #* +text+ is a Latin-1 (ISO-8859-1) encoded string related to the keyword
       def self.assemble(keyword, text)
         keyword_bytes = keyword.encode("ISO-8859-1").bytes.to_a
         text = text.encode("ISO-8859-1")
@@ -209,6 +217,9 @@ module Imgrb
       include AbstractChunk, Ancillary, Public, Unsafe
 
 
+      #Returns a time chunk (tIME)
+      #Input is a Time instance for the given time (UTC). The default parameter
+      #value is the current time.
       def self.assemble(date = Time.now.utc)
         new(pack_time(date))
       end
@@ -250,6 +261,8 @@ module Imgrb
     class ChunkgAMA
       include AbstractChunk, Ancillary, Public, Unsafe
 
+      #Returns a gamma chunk (gAMA)
+      #Takes as input a +gamma+ value
       def self.assemble(gamma)
         gamma = (gamma*100000).round
         if gamma > 0xFFFFFFFF
@@ -296,6 +309,18 @@ module Imgrb
     class ChunkcHRM
       include AbstractChunk, Ancillary, Public, Unsafe
 
+      #Returns a chromaticity chunk (cHRM)
+      #Input:
+      #* +white_x+
+      #* +white_y+
+      #* +red_x+
+      #* +red_y+
+      #* +green_x+
+      #* +green_y+
+      #* +blue_x+
+      #* +blue_y+
+      #Specifying the white point and the x, y chromaticities of r, g, b
+      #display primaries.
       def self.assemble(white_x, white_y, red_x, red_y,
                         green_x, green_y, blue_x, blue_y)
 
@@ -348,7 +373,7 @@ module Imgrb
       include AbstractChunk, Ancillary, Public, Unsafe
 
       ##
-      #An array of values between 0 and 255. The number of elements should be
+      #Input: An array of values between 0 and 255. The number of elements should be
       #equal to the number of channels.
       #
       #The values signify the number of significant bits per channel and should
@@ -395,7 +420,7 @@ module Imgrb
       include AbstractChunk, Ancillary, Public, Unsafe
 
       ##
-      #An array of values between 0 and 65535. The number of elements should be
+      #Input: An array of values between 0 and 65535. The number of elements should be
       #equal to the number of palette entries.
       def self.assemble(*hist)
 
@@ -436,6 +461,11 @@ module Imgrb
     class ChunkpHYs
       include AbstractChunk, Ancillary, Public, Safe
 
+      ##
+      #Input:
+      #* Pixel x-dimension
+      #* Pixel y-dimension
+      #* unit (see png spec)
       def self.assemble(xdim, ydim, unit)
         new([xdim, ydim, unit].pack("L>L>C"))
       end
@@ -475,6 +505,12 @@ module Imgrb
     class ChunkoFFs
       include AbstractChunk, Ancillary, Public, Safe
 
+      ##
+      #Input:
+      #
+      #* x-offset
+      #* y-offset
+      #* the unit (see png spec)
       def self.assemble(xoff, yoff, unit)
         new([xoff, yoff, unit].pack("l>l>C"))
       end
@@ -559,6 +595,14 @@ module Imgrb
     class ChunktRNS
       include AbstractChunk, Ancillary, Public, Unsafe
 
+      ##
+      #Input:
+      #For indexed images
+      #* array representing the transparency palette followed by the symbol :indexed
+      #For grayscale images
+      #* a single transparent value
+      #For color images
+      #* a single transparent color [r, g, b]
       def self.assemble(*trans_bytes)
         if trans_bytes[-1] == :indexed
           new(trans_bytes[0...-1].pack("C*"))
@@ -596,7 +640,7 @@ module Imgrb
     class ChunkeXIf
       include AbstractChunk, Ancillary, Public, Safe
 
-      def initialize(data, pos)
+      def initialize(data, pos) #:nodoc: Should not be called manually
         @exif_hash = Hash.new
         super(data, pos)
       end
@@ -799,6 +843,10 @@ module Imgrb
     class ChunkacTL
       include AbstractChunk, Ancillary, Private, Unsafe
 
+      ##
+      #Create a new acTL chunk specifying
+      #* The number of frames
+      #* The number of times to loop the animation (0 for endless loop)
       def self.assemble(num_frames, num_plays)
         new([num_frames, num_plays].pack("L>L>"))
       end
@@ -836,7 +884,8 @@ module Imgrb
       include AbstractChunk, Ancillary, Private, Unsafe
       attr_reader :sequence_number, :width, :height, :x_offset, :y_offset,
                   :delay_num, :delay_den
-      def initialize(data, pos)
+
+      def initialize(data, pos) #:nodoc: Should not be called manually
         super(data, pos)
         @sequence_number = Shared::interpret_bytes_4(data[0..3].unpack("C*"))
         @width           = Shared::interpret_bytes_4(data[4..7].unpack("C*"))
@@ -969,9 +1018,11 @@ module Imgrb
     #when reading a png file.
     class ChunkSafe
       include AbstractChunk, Ancillary, Safe
+
       #Returns the chunk type name (four characters as specified in the png spec)
       attr_reader :type
-      def initialize(type, data, pos)
+
+      def initialize(type, data, pos) #:nodoc: Should not be called manually
         @type = type
         super(data, pos)
       end
@@ -996,9 +1047,11 @@ module Imgrb
     #when reading a png file.
     class ChunkUnsafe
       include AbstractChunk, Ancillary, Unsafe
+
       #Returns the chunk type name (four characters as specified in the png spec)
       attr_reader :type
-      def initialize(type, data, pos)
+
+      def initialize(type, data, pos) #:nodoc: Should not be called manually
         @type = type
         super(data, pos)
       end

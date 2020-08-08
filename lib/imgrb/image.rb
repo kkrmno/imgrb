@@ -167,29 +167,25 @@ module Imgrb
       @animation_frames_cached = false
 
       #Needs testing for indexed apng images!
-      if apng?
-        n_frames, n_plays = @ancillary_chunks[:acTL][0].get_data
-        @header = @header.to_apng_header(n_frames, n_plays, @bitmap)
-        # warn "This seems to be an apng file (animated png). This extension to "\
-        #      "the png format is not supported. The data is treated as a "\
-        #      "normal png file. Thus, only a single image will be loaded. This "\
-        #      "is often the first frame of the animation, but may also be a "\
-        #      "default image that has been included in the file "\
-        #      "for decoders that do not handle the extension."
-        if !@only_metadata
-          @animation_frames = []
-          frame_control_chunks = @ancillary_chunks[:fcTL]
-          frame_data_chunks = @ancillary_chunks[:fdAT]
-          #If IDAT is first frame of animation
-          if frame_control_chunks[0].pos == :after_IHDR || frame_control_chunks[0].pos == :after_PLTE
-            @animation_frames[1..-1] = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks[1..-1], frame_data_chunks, @apng_palette, @apng_transparency_palette)
-            depalette
-            @animation_frames[0] = [frame_control_chunks[0], Image.new(@bitmap.rows, @header.image_type)]
-          else #If IDAT is not first frame of animation
-            @animation_frames = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks, frame_data_chunks, @apng_palette, @apng_transparency_palette)
-          end
+      if potential_apng?
+        valid_apng = check_valid_apng
+        if !valid_apng
+          warn "Invalid apng. Attempting to repair..."
+          r_actl, r_fctl, r_fdat = repair_apng
 
-          @animation_frames_cached = true
+          valid_apng = check_valid_apng(r_actl, r_fctl, r_fdat)
+          if !valid_apng
+            warn "Failed to repair broken apng. Handling as regular png."
+          else
+            warn "The apng was repaired. Some corrupt apng data may have been discarded."
+            @ancillary_chunks[:acTL] = r_actl
+            @ancillary_chunks[:fcTL] = r_fctl
+            @ancillary_chunks[:fdAT] = r_fdat
+          end
+        end
+
+        if valid_apng
+          cache_animation_frames_apng
         end
       end
 
@@ -235,20 +231,7 @@ module Imgrb
       #FIXME: CHECK IF CORRECT WHEN FIRST FRAME HAS DISPOSE OPERATION :previous
       if animated?
         if !@animation_frames_cached
-          @animation_frames = []
-          n_frames, n_plays = @ancillary_chunks[:acTL][0].get_data
-          @header = @header.to_apng_header(n_frames, n_plays, @bitmap)
-          frame_control_chunks = @ancillary_chunks[:fcTL]
-          frame_data_chunks = @ancillary_chunks[:fdAT]
-          #If IDAT is first frame of animation
-          if frame_control_chunks[0].pos == :after_IHDR || frame_control_chunks[0].pos == :after_PLTE
-            @animation_frames[1..-1] = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks[1..-1], frame_data_chunks, @apng_palette, @apng_transparency_palette)
-            depalette
-            @animation_frames[0] = [frame_control_chunks[0], Image.new(@bitmap.rows, @header.image_type)]
-          else #If IDAT is not first frame of animation
-            @animation_frames = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks, frame_data_chunks, @apng_palette, @apng_transparency_palette)
-          end
-          @animation_frames_cached = true
+          cache_animation_frames_apng
         end
 
         @current_frame += 1
@@ -1583,11 +1566,177 @@ module Imgrb
       extract_info(img)
     end
 
-    def apng?
-      @ancillary_chunks.key?(:acTL) &&
-      @ancillary_chunks[:acTL].size == 1 &&
-      (@ancillary_chunks[:acTL][0].pos == :after_IHDR ||
-      @ancillary_chunks[:acTL][0].pos == :after_PLTE)
+    def potential_apng?
+      @ancillary_chunks.key?(:acTL) ||
+      @ancillary_chunks.key?(:fcTL) ||
+      @ancillary_chunks.key?(:fdAT)
+    end
+
+    ##
+    #Tries to repair a broken apng by reordering apng chunks and removing
+    #superfluous apng chunks
+    def repair_apng
+      repaired_actl_chunk = []
+      repaired_fctl_chunks = []
+      repaired_fdat_chunks = []
+
+      apng_order_dependent_chunks = @ancillary_chunks[:fcTL] + @ancillary_chunks[:fdAT]
+
+      apng_order_dependent_chunks.sort_by!{|chunk| chunk.sequence_number}
+
+      if apng_order_dependent_chunks[0].type != "fcTL"
+        warn "Could not find initial fctl apng chunk"
+        return [repaired_actl_chunk, repaired_fctl_chunks, repaired_fdat_chunks]
+      end
+
+      if apng_order_dependent_chunks[0].type == apng_order_dependent_chunks[1].type &&
+        apng_order_dependent_chunks[0] = Chunks::ChunkfcTL.new(apng_order_dependent_chunks[0].data, :after_IHDR)
+        expecting_fctl = true
+      else
+        expecting_fctl = false
+      end
+
+      repaired_fctl_chunks << apng_order_dependent_chunks[0]
+
+      apng_order_dependent_chunks[1..-1].each do |apng_chunk|
+
+        if !expecting_fctl && apng_chunk.type == "fcTL"
+          warn "Discarding some corrupt frame data in order to salvage apng."
+          repaired_fctl_chunks = repaired_fctl_chunks[0..-2]
+          break
+        end
+
+        if expecting_fctl && apng_chunk.type == "fdAT"
+          warn "Discarding some corrupt frame data in order to salvage apng."
+          break
+        end
+
+
+
+        expecting_fctl = !expecting_fctl
+
+        if apng_chunk.type == "fcTL"
+          repaired_fctl_chunks << apng_chunk
+        else
+          repaired_fdat_chunks << apng_chunk
+        end
+      end
+
+      actl_chunk = @ancillary_chunks[:acTL][0]
+      if actl_chunk.respond_to? :get_data
+        num_plays = actl_chunk.get_data[1]
+      else
+        num_plays = 0
+      end
+      num_frames = repaired_fctl_chunks.size
+      repaired_actl_chunk = [Chunks::ChunkacTL.assemble(num_frames, num_plays)]
+
+      puts repaired_fctl_chunks.size
+      puts repaired_fdat_chunks.size
+
+
+      return [repaired_actl_chunk, repaired_fctl_chunks, repaired_fdat_chunks]
+
+    end
+
+
+    ##
+    #Checks if the order of apng chunks is correct. Also checks presense of
+    #required and expected chunks.
+    def check_valid_apng(actl_chunk = @ancillary_chunks[:acTL],
+                         fctl_chunks = @ancillary_chunks[:fcTL],
+                         fdat_chunks = @ancillary_chunks[:fdAT])
+
+
+      if fctl_chunks.size == 0
+        valid = false
+        warn "No frame control chunk found!"
+        return valid
+      end
+
+      valid = fctl_chunks[0].sequence_number == 0
+      if !valid
+        warn "First frame control chunk should have sequence number 0, not #{fctl_chunks[0].sequence_number}"
+      end
+
+      if actl_chunk.size == 0
+        valid = false
+        warn "Missing apng actl chunk"
+      elsif actl_chunk.size > 1
+        valid = false
+        warn "Multiple apng actl chunks detected"
+      elsif actl_chunk[0].pos != :after_IHDR && actl_chunk[0].pos != :after_PLTE
+        valid = false
+        warn "Apng actl chunk incorrectly appears after first IDAT chunk"
+      end
+
+
+      if fctl_chunks[0].pos == :after_IHDR || fctl_chunks[0].pos == :after_PLTE
+        sequence_check_start = 1
+        fctl_chunks = fctl_chunks[1..-1]
+      else
+        sequence_check_start = 0
+      end
+
+      if fctl_chunks.size > fdat_chunks.size
+        warn "Superfluous apng frame control chunk detected."
+        valid = false
+      elsif fctl_chunks.size < fdat_chunks.size
+        warn "Superfluous apng frame data chunk detected."
+        valid = false
+      end
+      apng_order_dependent_chunks = fctl_chunks.zip(fdat_chunks).flatten
+
+      expected_sequence_number = sequence_check_start
+      expected_chunk_type = "fcTL"
+      apng_order_dependent_chunks.each do |apng_chunk|
+
+        next if apng_chunk.nil? #Happens if missing fdat chunks
+
+        if apng_chunk.sequence_number != expected_sequence_number
+          valid = false
+          warn "Broken sequence for apng chunks. Expected #{expected_sequence_number}, but found #{apng_chunk.sequence_number}"
+        else
+          #Only check if two fdAT/fcTL in a row if the sequence order is correct
+          if apng_chunk.type != expected_chunk_type
+            valid = false
+            warn "Unexpectedly encountered doubled #{apng_chunk.type} apng chunks in sequence!"
+          end
+        end
+
+        expected_sequence_number += 1
+        expected_chunk_type = expected_chunk_type == "fcTL" ? "fdAT" : "fcTL"
+
+      end
+
+      return valid
+
+    end
+
+
+    ##
+    #Unpacks data in apng chunks and caches results in @animation_frames for
+    #faster scanning through the animation.
+    #
+    #Side effects:
+    #* Clears @animation_frames and populates it with frames in current apng chunks
+    #* Updates header to apng header with control data from the acTL chunk
+    #* Sets @animation_frames_cached to true
+    def cache_animation_frames_apng
+      @animation_frames = []
+      n_frames, n_plays = @ancillary_chunks[:acTL][0].get_data
+      @header = @header.to_apng_header(n_frames, n_plays, @bitmap)
+      frame_control_chunks = @ancillary_chunks[:fcTL]
+      frame_data_chunks = @ancillary_chunks[:fdAT]
+      #If IDAT is first frame of animation
+      if frame_control_chunks[0].pos == :after_IHDR || frame_control_chunks[0].pos == :after_PLTE
+        @animation_frames[1..-1] = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks[1..-1], frame_data_chunks, @apng_palette, @apng_transparency_palette)
+        depalette
+        @animation_frames[0] = [frame_control_chunks[0], Image.new(@bitmap.rows, @header.image_type)]
+      else #If IDAT is not first frame of animation
+        @animation_frames = Imgrb::ApngMethods::create_frames(@header, frame_control_chunks, frame_data_chunks, @apng_palette, @apng_transparency_palette)
+      end
+      @animation_frames_cached = true
     end
 
     def parse_image_hash(options)
@@ -1695,7 +1844,7 @@ module Imgrb
 
       #Currently saving apng as paletted is a problem (the fdAT chunks need to
       #be dealt with correctly). Therefore prevent paletting apngs. FIXME!
-      compression_level = 0 if apng?
+      compression_level = 0 if potential_apng?
 
       if compression_level > 0
         #If compression level is 0, no filtering is attempted, so unrounded

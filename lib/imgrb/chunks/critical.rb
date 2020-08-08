@@ -5,10 +5,13 @@ module Imgrb
     #Critical chunks may _never_ be ignored.
     #If a chunk is critical, it is also
     #implicitly unsafe to copy.
+    #All classes of critical chunks should include this module!
     module Critical
       include Imgrb::Chunks::Unsafe
 
-      def critical?
+      ##
+      #Returns true since this is a mixin for critical chunks
+      def critical? #:nodoc:
         return true
       end
 

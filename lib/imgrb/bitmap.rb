@@ -1,4 +1,5 @@
 module Imgrb
+  #Contains classes concerned with handling the bitmap present in Image instances
   module BitmapModule
 
     ##
@@ -28,7 +29,7 @@ module Imgrb
         @transparency_palette = []
       end
 
-      def rows=(rows)
+      def rows=(rows) #:nodoc:
         #Perform quick check if new rows seem reasonable
         #if rows.size == bm_height && rows[0].size == bm_width
           @rows = rows
@@ -52,7 +53,7 @@ module Imgrb
         @image.has_alpha?
       end
 
-      def to_rgb
+      def to_rgb #:nodoc:
         channels = @image.header.channels
         if channels == 3
           return self
@@ -68,7 +69,7 @@ module Imgrb
         @image.header.to_color_type(Imgrb::PngConst::TRUECOLOR, self)
       end
 
-      def to_rgba
+      def to_rgba #:nodoc:
         channels = @image.header.channels
         if channels == 4
           return self

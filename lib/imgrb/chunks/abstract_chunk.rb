@@ -1,9 +1,19 @@
 module Imgrb
+  #Contains classes and modules that deal with png chunks
   module Chunks
     #This is a mixin module that provides basic functionality for chunk classes.
     #If classes provide their own initialize method, it should call super.
     module AbstractChunk
-      attr_reader :data, :pos
+
+      #The raw data contained in the chunk
+      attr_reader :data
+      
+      #The required position of the chunk relative to other chunks in the png.
+      #May be stricter than necessary under certain circumstances (e.g. for
+      #unknown chunks encountered while reading)
+      attr_reader :pos
+
+
       ##
       #* +data+ contains the packed data inside the chunk
       #* +pos+ is the required position (e.g. after IDAT)

@@ -215,10 +215,14 @@ module Imgrb::BitmapModule
     ##
     #Rescales pixel values such that the maximal value of any channel is
     #+max_val+, and the minimum value is +min_val+. By default scales values to
-    #the range [0, 1].
+    #the range [0, 1]. If the image only contains pixels of a single value, the
+    #returned image is one where all values are equal to +min_val+
     def rescale(min_val = 0, max_val = 1)
       img = self.to_f
       self_min, self_max = img.bitmap.rows.flatten.minmax
+      if self_max == self_min
+        return Imgrb::Image.new(img.width, img.height, [min_val]*img.channels)
+      end
       diff = max_val - min_val
       rescaled = (img - self_min)
       rescaled = rescaled * (diff/(self_max - self_min)) + min_val
@@ -507,6 +511,12 @@ module Imgrb::BitmapModule
 
 
       if method == :bilinear
+        #TODO: Resize frame data of animations
+        # if self.animated?
+        #   if !@animation_frames_cached
+        #     cache_animation_frames_apng if check_valid_apng
+        #   end
+        # end
         return bilinear(scale[0], scale[1])
       elsif method == :nearest
         return nearest_neighbor(scale[0], scale[1])
@@ -532,6 +542,10 @@ module Imgrb::BitmapModule
     #channels of the original image, specifying the threshold for each channel.
     alias threshold is_greater
 
+    ##
+    #Compares against another image of equal size and returns a new image which,
+    #for each channel, is 1 where this image is greater than or equal to the
+    #other and 0 otherwise.
     def is_greater_or_equal(img_to_compare)
       return is_compared(img_to_compare, :greater_or_equal)
     end
@@ -544,6 +558,10 @@ module Imgrb::BitmapModule
       return is_compared(img_to_compare, :lesser)
     end
 
+    ##
+    #Compares against another image of equal size and returns a new image which,
+    #for each channel, is 1 where this image is lesser than or equal to the
+    #other and 0 otherwise.
     def is_lesser_or_equal(img_to_compare)
       return is_compared(img_to_compare, :lesser_or_equal)
     end

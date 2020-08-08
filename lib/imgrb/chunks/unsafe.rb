@@ -5,6 +5,7 @@ module Imgrb
     #If any changes to _critical_ chunks have been
     #made, then unrecognized unsafe chunks must
     #_not_ be copied to the output png file.
+    #All classes of unsafe-to-copy chunks should include this module!
     module Unsafe
       def safe?
         return false
