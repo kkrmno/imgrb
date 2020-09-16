@@ -317,19 +317,19 @@ module Imgrb::BitmapModule
     ##
     #Same as +draw_disk+, except modifies the image instead of a copy.
     def draw_disk!(x0, y0, radius, color)
+      color = Array(color)
       raise ArgumentError, "radius must be non-negative." if radius < 0
       if color.size != self.channels
-        raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{image.channels})"
+        raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{self.channels})"
       end
       x0.to_f
       y0.to_f
-      color = Array(color)
 
       rows = self.bitmap.rows
       c = self.channels
 
       (y0.floor-radius.ceil).upto(y0.ceil+radius.ceil) do |y|
-        next if y < 0 || y > self.height
+        next if y < 0 || y >= self.height
         row = rows[y]
         (x0.floor-radius.ceil).upto(x0.ceil+radius.ceil) do |x|
           next if x < 0 || x >= self.width
