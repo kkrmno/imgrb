@@ -313,12 +313,10 @@ module Imgrb::BitmapModule
       return atan_img
     end
 
+
     ##
-    #Draw a disk of specified radius and color centered at the given coordinates.
-    #The coordinates and radius can be floats or integers.
-    #Example:
-    # draw_disk(x, y, r, [255, 0, 255, 255]) #Purple, opaque disk of radius r at x, y
-    def draw_disk(x0, y0, radius, color)
+    #Same as +draw_disk+, except modifies the image instead of a copy.
+    def draw_disk!(x0, y0, radius, color)
       raise ArgumentError, "radius must be non-negative." if radius < 0
       if color.size != self.channels
         raise ArgumentError, "color must have the same number of channels as the image (given #{color.size} expected #{image.channels})"
@@ -326,34 +324,42 @@ module Imgrb::BitmapModule
       x0.to_f
       y0.to_f
       color = Array(color)
-      img = self.copy
 
-      (x0.floor-radius.ceil).upto(x0.ceil+radius.ceil) do |x|
-        (y0.floor-radius.ceil).upto(y0.ceil+radius.ceil) do |y|
-          next if x < 0 || x >= img.width || y < 0 || y >= img.height
+      rows = self.bitmap.rows
+      c = self.channels
+
+      (y0.floor-radius.ceil).upto(y0.ceil+radius.ceil) do |y|
+        next if y < 0 || y > self.height
+        row = rows[y]
+        (x0.floor-radius.ceil).upto(x0.ceil+radius.ceil) do |x|
+          next if x < 0 || x >= self.width
           dist = Math.sqrt((x-x0)**2 + (y-y0)**2)
           coverage = radius - dist + 0.5 #Close enough
           coverage = [0, coverage].max
           coverage = [coverage, 1].min
-          orig_color = Array(self[y,x])
-          new_color = color.collect.with_index{|col,idx| coverage * col + (1 - coverage) * orig_color[idx]}
+          r_coverage = 1 - coverage
 
-          img[y, x] = new_color
+          #Faster than using self[y][x]
+          color.each_with_index do |col, idx|
+            row[x*c + idx] = coverage * col + r_coverage * row[x*c + idx]
+          end
         end
       end
-      img
+      self
+    end
+
+    ##
+    #Draw a disk of specified radius and color centered at the given coordinates.
+    #The coordinates and radius can be floats or integers.
+    #Example:
+    # draw_disk(x, y, r, [255, 0, 255, 255]) #Purple, opaque disk of radius r at x, y
+    def draw_disk(x0, y0, radius, color)
+      self.copy.draw_disk!(x0, y0, radius, color)
     end
 
 
-    #Draw line by coverage
-    #Draw a line from (x0, y0) to (x1, y1) (coordinates may be float or integer).
-    #The line does not have to start or end inside the image (only the visible
-    #part will be drawn). The color of the line can be specified as well as its
-    #width.
-    #Example:
-    # draw_line(-100.5, 400, 1000, -10.23, [255, 0, 0], 10.5)
-    #The +line_width+ argument ranges from 0 and up (0 is the thinnest line).
-    def draw_line(x0, y0, x1, y1, color, line_width = 1)
+    #Same as +draw_line+, except modifies the image instead of a copy
+    def draw_line!(x0, y0, x1, y1, color, line_width = 1)
       #TODO: Refactor
       #TODO: Make more accurate. Sometimes the end points of the line are off by
       #a small amount
@@ -370,17 +376,16 @@ module Imgrb::BitmapModule
       y0 = y0.to_f
       x1 = x1.to_f
       y1 = y1.to_f
-      img = self.copy
 
       #Special case for drawing a line with no length (i.e. a dot)
       #If this does not hold, dx won't be 0
       if x0 == x1 && y0 == y1
-        return img.draw_disk(x0, y0, line_width, color)
+        return self.draw_disk!(x0, y0, line_width, color)
       end
 
       #Draw endpoints as disks (rounded edges)
-      img = img.draw_disk(x0, y0, line_width, color)
-      img = img.draw_disk(x1, y1, line_width, color)
+      self.draw_disk!(x0, y0, line_width, color)
+      self.draw_disk!(x1, y1, line_width, color)
 
       #Two cases: one where the slope of the line is between -1 and 1 and one
       #where the slope is steeper
@@ -429,6 +434,10 @@ module Imgrb::BitmapModule
       #Decimal part of x used to correct position of the pixels at integer positions
       x_frac = x0 - x0.floor
 
+
+      rows = self.bitmap.rows
+      c = self.channels
+
       y = y0+slope
       (x0+1).floor.upto(x1.ceil-1) do |x|
         x_dist = x - x0 + x_frac
@@ -446,8 +455,8 @@ module Imgrb::BitmapModule
 
           #Skip pixels outside bounds, but continue drawing in case part of the line
           #is inside the image
-          next if x_to_update < 0 || x_to_update >= img.width ||
-                  y_to_update < 0 || y_to_update >= img.height
+          next if x_to_update < 0 || x_to_update >= self.width ||
+                  y_to_update < 0 || y_to_update >= self.height
 
           #Since the line has width, we generally need to consider x and y coordinates
           #some way away from the center line (near the end points of the center line).
@@ -469,18 +478,33 @@ module Imgrb::BitmapModule
           #Clamp coverage to values between 0 and 1
           coverage = [0.0, coverage].max
           coverage = [coverage, 1.0].min
+          r_coverage = 1 - coverage
 
-          #Mix original color and line color based on coverage
-          #TODO: Mixing when alpha channel present probably needs work.
-          orig_color = Array(self[y_to_update, x_to_update])
-          new_color = color.collect.with_index{|c,idx| c * coverage + (1-coverage) * orig_color[idx]}
-          img[y_to_update, x_to_update] = new_color
+          row = rows[y_to_update]
+          xmul = x_to_update*c
+          #Faster than using self[y][x]
+          color.each_with_index do |col, idx|
+            row[xmul + idx] = coverage * col + r_coverage * row[xmul + idx]
+          end
         end
 
         y = y+slope
       end
 
-      return img
+      return self
+    end
+
+    ##
+    #Draw line by coverage
+    #Draw a line from (x0, y0) to (x1, y1) (coordinates may be float or integer).
+    #The line does not have to start or end inside the image (only the visible
+    #part will be drawn). The color of the line can be specified as well as its
+    #width.
+    #Example:
+    # draw_line(-100.5, 400, 1000, -10.23, [255, 0, 0], 10.5)
+    #The +line_width+ argument ranges from 0 and up (0 is the thinnest line).
+    def draw_line(x0, y0, x1, y1, color, line_width = 1)
+      self.copy.draw_line!(x0, y0, x1, y1, color, line_width)
     end
 
 
