@@ -85,7 +85,28 @@ module Imgrb
     end
 
 
-    register_chunks(ChunkIDAT, ChunkIHDR, ChunkPLTE, ChunkIEND)
+
+
+
+    class ChunkCgBI
+      include AbstractChunk, Critical, Private
+
+
+      def self.type #:nodoc:
+        "CgBI"
+      end
+
+
+      private
+      def when_read(data)
+        warn "CgBI chunk present. This is probably a CgBI-file, which may"\
+             " cause problems, since it is posing as a png-file but is invalid."
+      end
+    end
+
+
+    register_chunks(ChunkIDAT, ChunkIHDR, ChunkPLTE, ChunkIEND,
+                    ChunkCgBI)
 
 
   end

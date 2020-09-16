@@ -184,7 +184,7 @@ module Imgrb
           end
         end
 
-        if valid_apng
+        if valid_apng #TODO: Superfluous?
           cache_animation_frames_apng
         end
       end
@@ -476,7 +476,7 @@ module Imgrb
       c = header.channels
       if x.nil?
         if v.size == @bitmap.rows[0].size
-          @bitmap.rows[y] = v
+          @bitmap.rows[y] = v.dup
           self
         else
           raise ArgumentError, "Wrong row size: #{v.size}. Expected "\
@@ -588,6 +588,18 @@ module Imgrb
       each.with_index(&block)
     end
 
+    ##
+    #Returns a copy of the image object including copying metadata (e.g.
+    #ancillary chunks)
+    def copy_with_metadata
+      img = Image.new(rows.clone, @header.image_type, @header.bit_depth)
+      self.ancillary_chunks.values.each do |chunk_arr|
+        chunk_arr.each do |chunk|
+          img.add_chunk(chunk.copy)
+        end
+      end
+      img
+    end
 
     ##
     #Returns an image instance containing a copy of the pixels specified.
@@ -595,10 +607,10 @@ module Imgrb
     #longer animated. Should maybe change this. Careful with unsafe chunks in
     #that case.
     def copy(col = 0, row = 0, width_ = width, height_ = height)
-      rows = []
+      rows = Array.new(height_)
       height_.times do
         |y|
-        rows << @bitmap.rows[row + y][col*header.channels..(col+width_)*header.channels-1]
+        rows[y] = @bitmap.rows[row + y][col*header.channels..(col+width_)*header.channels-1]
       end
 
       Image.new(rows, @header.image_type, @header.bit_depth)

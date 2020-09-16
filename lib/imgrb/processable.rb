@@ -313,7 +313,6 @@ module Imgrb::BitmapModule
       return atan_img
     end
 
-
     ##
     #Draw a disk of specified radius and color centered at the given coordinates.
     #The coordinates and radius can be floats or integers.
@@ -575,6 +574,25 @@ module Imgrb::BitmapModule
     end
 
     ##
+    #Same as +collect_channels_to_image+ except modifies self instead of copy
+    def collect_channels_to_image! &block
+      return to_enum(__method__) unless block_given?
+      new_channels = self.each_channel.collect(&block)
+      new_channels.each do |c|
+        if !c.is_a? Imgrb::Image || c.channels != 1
+          raise TypeError, "the block must return an image with a single channel!"
+        end
+      end
+
+      new_channels.each_with_index do |c, i|
+        self.set_channel(i, c)
+      end
+      self
+    end
+
+    alias map_channels_to_image! collect_channels_to_image!
+
+    ##
     #Invokes the given block once for each channel of the image. Creates a new
     #image containing the channels returned by the block.
     #The block must return a channel image.
@@ -588,18 +606,26 @@ module Imgrb::BitmapModule
     #   end
     # end
     def collect_channels_to_image &block
-      return to_enum(__method__) unless block_given?
-      new_channels = self.each_channel.collect(&block)
-      new_channels.each do |c|
-        if !c.is_a? Imgrb::Image || c.channels != 1
-          raise TypeError, "the block must return an image with a single channel!"
-        end
-      end
-      Imgrb::Image.new(*new_channels)
+      self.copy.collect_channels_to_image!(&block)
     end
 
     alias map_channels_to_image collect_channels_to_image
 
+
+    ##
+    #Same as +collect_to_image+ except modifies self instead of copy
+    def collect_to_image! &block
+      return to_enum(__method__) unless block_given?
+      self.each_with_coord do |val, x, y|
+        self[y, x] = block.call(val)
+      end
+
+      self
+    end
+
+    alias collect_pixels_to_image! collect_to_image!
+    alias map_to_image! collect_to_image!
+    alias map_pixels_to_image! collect_to_image!
 
     ##
     #Invokes the given block once for each pixel of the image. Creates a new
@@ -613,20 +639,28 @@ module Imgrb::BitmapModule
     #   new_pxl
     # end
     def collect_to_image &block
-      return to_enum(__method__) unless block_given?
-      img = Imgrb::Image.new(self.width, self.height, [0]*self.channels)
-      self.each_with_coord do |val, x, y|
-        pxl = block.call(val)
-        img[y, x] = pxl
-      end
-
-      img
+      self.copy.collect_to_image!(&block)
     end
 
     alias collect_pixels_to_image collect_to_image
     alias map_to_image collect_to_image
     alias map_pixels_to_image collect_to_image
 
+
+    ##
+    #Same as +collect_to_image_with_coord+ except modifies self instead of copy.
+    def collect_to_image_with_coord! &block
+      return to_enum(__method__) unless block_given?
+      self.each_with_coord do |val, x, y|
+        self[y, x] = block.call(val, x, y)
+      end
+
+      self
+    end
+
+    alias collect_pixels_to_image_with_coord! collect_to_image_with_coord!
+    alias map_to_image_with_coord! collect_to_image_with_coord!
+    alias map_pixels_to_image_with_coord! collect_to_image_with_coord!
 
 
     ##
@@ -645,14 +679,7 @@ module Imgrb::BitmapModule
     #   new_pxl
     # end
     def collect_to_image_with_coord &block
-      return to_enum(__method__) unless block_given?
-      img = Imgrb::Image.new(self.width, self.height, [0]*self.channels)
-      self.each_with_coord do |val, x, y|
-        pxl = block.call(val, x, y)
-        img[y, x] = pxl
-      end
-
-      img
+      self.copy.collect_to_image_with_coord!(&block)
     end
 
     alias collect_pixels_to_image_with_coord collect_to_image_with_coord

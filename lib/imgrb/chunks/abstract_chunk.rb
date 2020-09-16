@@ -7,7 +7,7 @@ module Imgrb
 
       #The raw data contained in the chunk
       attr_reader :data
-      
+
       #The required position of the chunk relative to other chunks in the png.
       #May be stricter than necessary under certain circumstances (e.g. for
       #unknown chunks encountered while reading)
@@ -65,6 +65,12 @@ module Imgrb
       end
 
       ##
+      #Returns a (deep) copy of the chunk object
+      def copy
+        return self.class.new(@data, @pos)
+      end
+
+      ##
       #Returns the data part of the chunk as bytes (override for chunks if more
       #specific format is desired).
       def get_data
@@ -117,7 +123,7 @@ module Imgrb
                                   "match private/public flag "\
                                   "'#{public?}'. Either change name to "\
                                   "'#{type[0]<<type[1].swapcase<<type[2..3]}' "\
-                                  "or change the private/public satus "\
+                                  "or change the private/public status "\
                                   "of the chunk!"
         end
       end
