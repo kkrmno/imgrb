@@ -120,6 +120,9 @@ Drawing a line on top of an image can be done in the following manner:
 
 image.draw_line(x_start, y_start, x_end, y_end, color, width)
 ```
+
+<a href="https://github.com/kkrmno/imgrb/wiki/Wireframe"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/teapot.png" alt="teapot animation" align="right"/></a>
+
 Note that the positions of the end points can be specified using floats and that
 the coordinates do not need to be inside the bounds of the image (only the visible
 part of the line will be drawn). The width argument specifies the thickness of
