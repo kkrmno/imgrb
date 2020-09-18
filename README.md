@@ -187,9 +187,9 @@ In many cases, the file size of the animation can be kept smaller by making use 
 
 For illustration purposes we will iteratively generate a Sierpinski triangle as shown in the figure below:
 
-<a href="https://github.com/kkrmno/imgrb/wiki/Animating-Sierpinski-triangle"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png" alt="Sierpinski" width="400" /></a>
-
 We first set up a black 400x400 grayscale image with an alpha channel at full opacity
+
+<a href="https://github.com/kkrmno/imgrb/wiki/Animating-Sierpinski-triangle"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/animated_sierpinski.png" alt="Sierpinski" width="200" align="right"/></a>
 
 ```ruby
 
