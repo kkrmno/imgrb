@@ -1060,6 +1060,39 @@ module Imgrb
     end
 
     ##
+    #Returns the frame control chunk for a given frame.
+    #+frame_nr+ can be negative to refer to frames from the end of the sequence.
+    #The frame control chunk contains information about the frame such as how
+    #long it is displayed for, how it is disposed of etc.
+    #
+    #See info on the apng frame control chunk for more details. Also ChunkfcTL.
+    #As a side effect, this method sorts the fcTL chunks according to their
+    #sequence number (normally these should be sorted regardless)
+    def get_frame_control(frame_nr)
+      @ancillary_chunks[:fcTL].sort_by!{|chunk| chunk.sequence_number}
+      @ancillary_chunks[:fcTL][frame_nr]
+    end
+
+    ##
+    #Sets the length of time a frame will be displayed in seconds (rational number).
+    #+frame_nr+ can be negative to refer to frames from the end of the sequence.
+    def set_frame_time(frame_nr, numerator, denominator)
+      chunk_to_update = get_frame_control(frame_nr)
+      is_default_image = chunk_to_update.pos == :after_IHDR
+      updated_chunk = Chunks::ChunkfcTL.assemble(is_default_image,
+                                                 chunk_to_update.sequence_number,
+                                                 chunk_to_update.width,
+                                                 chunk_to_update.height,
+                                                 chunk_to_update.x_offset,
+                                                 chunk_to_update.y_offset,
+                                                 numerator,
+                                                 denominator,
+                                                 chunk_to_update.dispose_op,
+                                                 chunk_to_update.blend_op)
+      @ancillary_chunks[:fcTL][frame_nr] = updated_chunk
+    end
+
+    ##
     #Push an animation frame (apng) to the end of the frame sequence.
     #Converts image to an animated (if not animated already)
     def push_frame(img, x_offset = 0, y_offset = 0,

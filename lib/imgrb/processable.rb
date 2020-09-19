@@ -781,8 +781,7 @@ module Imgrb::BitmapModule
       #TODO: Optimize!
       img_width = image.width
       img_height = image.height
-      # dilated_image = Imgrb::Image.new(img_width, img_height, 0)
-      # dilated_rows = dilated_image.bitmap.rows
+
       se_x_off = structuring_element.width/2
       se_y_off = structuring_element.height/2
 
@@ -795,27 +794,19 @@ module Imgrb::BitmapModule
       end
 
       image.collect_to_image_with_coord do |_, x, y|
-      # image.height.times do |y|
-      #   image.width.times do |x|
-          dil_val = -Float::INFINITY
-          structuring_element.each_with_coord do |val, se_x, se_y|
-            next if val == -Float::INFINITY
-            img_x = reflect_mult*(se_x - se_x_off) + x
-            img_y = reflect_mult*(se_y - se_y_off) + y
-            next if img_x < 0 || img_x >= img_width || img_y < 0 || img_y >= img_height
+        dil_val = -Float::INFINITY
+        structuring_element.each_with_coord do |val, se_x, se_y|
+          next if val == -Float::INFINITY
+          img_x = reflect_mult*(se_x - se_x_off) + x
+          img_y = reflect_mult*(se_y - se_y_off) + y
+          next if img_x < 0 || img_x >= img_width || img_y < 0 || img_y >= img_height
 
-            img_val_nf = image_rows[img_y][img_x] + val
-            dil_val = img_val_nf if img_val_nf > dil_val
-          end
+          img_val_nf = image_rows[img_y][img_x] + val
+          dil_val = img_val_nf if img_val_nf > dil_val
+        end
 
-          # dilated_image[y, x] = dil_val
-          # dilated_rows[y][x] = dil_val
-          dil_val
-      #   end
-      # end
+        dil_val
       end
-
-      # return dilated_image
     end
 
 

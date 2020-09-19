@@ -883,7 +883,7 @@ module Imgrb
     class ChunkfcTL
       include AbstractChunk, Ancillary, Private, Unsafe
       attr_reader :sequence_number, :width, :height, :x_offset, :y_offset,
-                  :delay_num, :delay_den
+                  :delay_num, :delay_den, :dispose_op, :blend_op
 
       def initialize(data, pos) #:nodoc: Should not be called manually
         super(data, pos)
@@ -898,12 +898,21 @@ module Imgrb
         @blend_op        = data[25].bytes.to_a[0]
       end
 
-      def self.assemble(sequence_number, width, height, x_offset, y_offset,
-                        delay_num, delay_den, dispose_op, blend_op)
-        packed = [sequence_number, width, height, x_offset, y_offset,
-         delay_num, delay_den, dispose_op, blend_op].pack("L>L>L>L>L>S>S>CC")
+      def self.assemble(is_default_image, sequence_number, width, height,
+                        x_offset, y_offset, delay_num, delay_den, dispose_op, blend_op)
 
-        new(packed)
+        packed = [sequence_number, width, height, x_offset, y_offset,
+            delay_num, delay_den, dispose_op, blend_op].pack("L>L>L>L>L>S>S>CC")
+
+        if is_default_image
+          if sequence_number != 0
+            raise Exceptions::ChunkError, "If default image is part of the " \
+                              "apng it must be the first image in the sequence"
+          end
+          return new(packed, :after_IHDR)
+        else
+          return new(packed, :after_IDAT)
+        end
       end
 
 
