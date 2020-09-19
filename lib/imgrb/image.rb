@@ -223,6 +223,12 @@ module Imgrb
     end
 
     ##
+    #Returns the number of animation frames
+    def animation_length
+      return @ancillary_chunks[:fcTL].size
+    end
+
+    ##
     #Forward the animation one frame. Note that the first time this is called,
     #this may take a much longer time than normal (specifically for manually
     #generated animations, i.e. using push_frame etc.).
@@ -272,8 +278,11 @@ module Imgrb
     end
 
     ##
-    #Jumps an animation to the given frame number.
+    #Jumps an animation to the given frame number. Negative numbers can be used
+    #to select frames in reverse, where -1 is the last frame.
     def jump_to_frame(frame_nr)
+      frame_nr = frame_nr % animation_length
+
       if @current_frame > frame_nr
         reset_animation
       end
@@ -1068,7 +1077,7 @@ module Imgrb
     #See info on the apng frame control chunk for more details. Also ChunkfcTL.
     #As a side effect, this method sorts the fcTL chunks according to their
     #sequence number (normally these should be sorted regardless)
-    def get_frame_control(frame_nr)
+    def get_frame_control(frame_nr = @current_frame)
       @ancillary_chunks[:fcTL].sort_by!{|chunk| chunk.sequence_number}
       @ancillary_chunks[:fcTL][frame_nr]
     end
@@ -1090,6 +1099,23 @@ module Imgrb
                                                  chunk_to_update.dispose_op,
                                                  chunk_to_update.blend_op)
       @ancillary_chunks[:fcTL][frame_nr] = updated_chunk
+    end
+
+
+    ##
+    #Returns an image object containing the pixels of the specified frame.
+    #If no parameter is given, returns the pixel data for the current frame.
+    #Does not carry over any metadata.
+    #If it is desirable to obtain a sequence of frames, it is faster go to the
+    #initial frame of interest using +jump_to_frame+ and then using +get_frame+
+    #followed by +animate_step+ iteratively until all frames of interest have
+    #been extracted.
+    def get_frame(frame_nr = @current_frame)
+      remembered_frame_nr = @current_frame
+      jump_to_frame(frame_nr)
+      frame_image = self.copy
+      jump_to_frame(remembered_frame_nr)
+      return frame_image
     end
 
     ##
