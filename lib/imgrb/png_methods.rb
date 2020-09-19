@@ -744,13 +744,12 @@ module Imgrb
           chunk = create_chunk(chunk_ascii, chunk_data, chunk_rel_pos)
           if !skip_crc && chunk.crc != crc.pack("C*")
             if chunk.critical?
-              raise Imgrb::Exceptions::CrcError, "Critical chunk "\
-                                                 "'#{chunk.type}' failed crc "\
-                                                 "check."
+              warn "Critical chunk '#{chunk.type}' failed crc check. Image may"\
+                   " not be decoded correctly."
             else
-              warn "Ancillary chunk '#{chunk.type}' failed crc check. "\
-                   "It has been skipped."
-              chunk = Chunks::ChunkskIP.new("", chunk_rel_pos)
+              warn "Ancillary chunk '#{chunk.type}' failed crc check. "#\
+                   # "It has been skipped."
+              # chunk = Chunks::ChunkskIP.new("", chunk_rel_pos)
             end
           end
           return [chunk, end_of_chunk]

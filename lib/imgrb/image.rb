@@ -190,6 +190,12 @@ module Imgrb
       end
 
       depalette if @header.paletted?
+
+
+      if rows.size > height
+        warn "Image contains superfluous rows of pixel data that have been discarded."
+        @bitmap.rows = @bitmap.rows[0...height]
+      end
     end
 
     ##

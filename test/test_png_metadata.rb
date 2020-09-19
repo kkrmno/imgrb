@@ -45,9 +45,27 @@ class ImgrbTest < Test::Unit::TestCase
       |file_path|
 
       if @test_feature == "x"
-        #Invalid png files should generally raise exception (except in the case below).
-        assert_raise do
-          Imgrb::Image.new(file_path)
+        #Invalid png files should generally raise exception (except in the specific cases below).
+
+        if @parameter == "cs" || @parameter == "hd"
+          if @parameter == "cs"
+            chunk_str = "IDAT"
+          else
+            chunk_str = "IHDR"
+          end
+          #Test images with bad crc warn
+          actual_stderr = $stderr
+          $stderr = StringIO.new
+          assert_nothing_raised do
+            Imgrb::Image.new(file_path)
+          end
+          $stderr.rewind
+          assert_equal "Critical chunk '#{chunk_str}' failed crc check. Image may not be decoded correctly.", $stderr.string.chomp
+          $stderr = actual_stderr
+        else
+          assert_raise do
+            Imgrb::Image.new(file_path)
+          end
         end
 
         #Reading only metadata should not raise an error if IDAT chunk is
