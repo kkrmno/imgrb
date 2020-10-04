@@ -457,7 +457,9 @@ module Imgrb
 
     ##
     #Instances of this class represent pHYs chunks. This chunk specifies the
-    #intended physical dimensions of a pixel in width and height.
+    #intended physical dimensions of a pixel in width and height. Gives pixels
+    #per unit in x and y direction, where the unit is either unknown (0) or
+    #meteres (1)
     class ChunkpHYs
       include AbstractChunk, Ancillary, Public, Safe
 

@@ -32,7 +32,7 @@ module Imgrb
       mock_image_data << dat unless dat == ""
 
 
-      #Will not work with indexed images
+      #Will not work with indexed images?
       mock_images = []
       mock_header.each.with_index do
         |header, i|
@@ -80,7 +80,7 @@ module Imgrb
         temp_image.paste(x_offset, y_offset, background_image)
         return temp_image.rows
       elsif operation == :previous #APNG_DISPOSE_OP_PREVIOUS
-        temp_image = Imgrb::Image.new(image.rows)
+        temp_image = Imgrb::Image.new(image.rows, image.header.image_type)
         temp_image.paste(x_offset, y_offset, previous_frame)
         return temp_image.rows
       else

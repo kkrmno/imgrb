@@ -53,6 +53,18 @@ module Imgrb
         @image.has_alpha?
       end
 
+      def add_alpha #:nodoc:
+        channels = @image.header.channels
+        if channels == 3
+          to_rgba
+        elsif channels == 4 || channels == 2
+          return
+        elsif channels == 1
+          add_channels([[255]*@image.header.width]*@image.header.height, 1)
+          @image.header.to_color_type(Imgrb::PngConst::GRAYSCALE_ALPHA, self)
+        end
+      end
+
       def to_rgb #:nodoc:
         channels = @image.header.channels
         if channels == 3

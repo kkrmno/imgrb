@@ -35,7 +35,7 @@ module Imgrb
     #* :skip_crc, to skip crc checks
     #
     #Ways to call new:
-    #* new(img_0, ..., img_n), where each img_i is and Image instance with one channel, each img_i has the same size, and the number of input images determine the number of channels (max 4).
+    #* new(img_0, ..., img_n), where each img_i is an Image instance with one channel, each img_i has the same size, and the number of input images determine the number of channels (max 4).
     #* new(width, height, color), where width and height are integers, and color is the color used to fill the image (number of channels determined by color.size)
     #* new(path), where path is a string pointing to a png, apng, or bmp file.
     #* new(string, :from_string => true), where string contains the bytes of an image.
@@ -51,7 +51,7 @@ module Imgrb
       #  up loading of multiple images of the same format (i.e. same width,
       #  height, bit depth etc.).
 
-      raise ArgumentError, "Too many arguments (options.size + 1)!" if options.size > 3
+      raise ArgumentError, "Too many arguments (#{options.size} + 1)!" if options.size > 3
 
       case img
       when Image
@@ -141,9 +141,6 @@ module Imgrb
       @background_color = []
       @ancillary_chunks = Hash.new {|h, k| h[k] = []}
 
-      @palette = []
-      @transparency_palette = []
-
       @png_image_stream = ""
       @chunks_found = []
 
@@ -190,6 +187,7 @@ module Imgrb
       end
 
       depalette if @header.paletted?
+      handle_trns_chunk
 
 
       if rows.size > height
@@ -468,15 +466,35 @@ module Imgrb
     #returns the pixel at col_idx in row at row_idx
     #Note that the row and col are switched with respect to get_pixel, where column is given
     #first and row second (get_pixel(x,y))
+    #Negative indexing is allowed to address elements from the end of the row or column.
+    #The index values can also be arrays/ranges to access multiple pixels, e.g.
+    #
+    # image[0..10,-10..-1]
+    #
+    #Returns a flat array containing the pixel data in the top right of the image.
     def [](y, x = nil)
-      if x.nil?
-        @bitmap.rows[y].dup
+      y = Array(y)
+      x = Array(x)
+      if x.empty?
+        y.collect do |row|
+          @bitmap.rows[row].dup
+        end
       else
         c = @header.channels
-        if c > 1
-          @bitmap.rows[y][x*c..(x+1)*c-1]
+        values = y.collect do |row|
+          x.collect do |col|
+            col = col % self.width
+            if c > 1
+              @bitmap.rows[row][col*c...(col+1)*c]
+            else
+              @bitmap.rows[row][col]
+            end
+          end
+        end.flatten
+        if values.size == 1
+          return values[0]
         else
-          @bitmap.rows[y][x]
+          return values
         end
       end
     end
@@ -485,25 +503,39 @@ module Imgrb
     #  image[row_idx, col_idx] = pixel
     #Note that the row and col are switched with respect to set_pixel, where column is given
     #first and row second (set_pixel(x,y,pixel))
+    #Negative indexing is allowed to address elements from the end of the row or column.
+    #The index values can also be arrays/ranges to access multiple pixels, e.g.
+    #
+    # image[0..10,-10..-1] = [255, 0, 0]
+    #
+    #To set a square in the top right of the image to red.
     #Careful. Channels can be set to values outside bit depth.
     def []=(y, x = nil, v)
+      y = Array(y)
+      x = Array(x)
       v = Array(v)
       c = header.channels
-      if x.nil?
+      if x.empty?
         if v.size == @bitmap.rows[0].size
-          @bitmap.rows[y] = v.dup
-          self
+          y.each do |row|
+            @bitmap.rows[row] = v.dup
+          end
         else
           raise ArgumentError, "Wrong row size: #{v.size}. Expected "\
                              "#{@bitmap.rows[0].size}"
         end
       elsif v.size == c
-        @bitmap.rows[y][x*c..(x+1)*c-1] = v
-        self
+        y.each do |row|
+          x.each do |col|
+            col = col % self.width
+            @bitmap.rows[row][col*c...(col+1)*c] = v
+          end
+        end
       else
         raise ArgumentError, "Wrong pixel size: #{v.size}. Expected "\
                              "#{header.channels}"
       end
+      self
     end
 
     ##
@@ -645,6 +677,7 @@ module Imgrb
     ##
     #Replace all pixels starting at +col+, +row+ by the pixels in the given image.
     #Modifies self!
+    #Careful! No bounds checking!
     def paste(col, row, image)
       if header.channels != image.header.channels
         raise Exceptions::ImageError, "Trying to paste image with "\
@@ -1649,6 +1682,26 @@ module Imgrb
       @ancillary_chunks.key?(:fdAT)
     end
 
+
+    ##
+    #Handles tRNS chunk for non-indexed images
+    def handle_trns_chunk
+      #Add transparency from tRNS chunk for non-indexed images.
+      if rows.size > 0 && @bitmap.transparency_palette.size > 0 &&
+         channels != 2 && channels != 4 &&
+         (@header.image_type == 0 || @header.image_type == 2)
+
+        @bitmap.add_alpha
+        self.each_with_coord do |val, x, y|
+          if val[0...-1] == @bitmap.transparency_palette
+            new_val = val
+            new_val[-1] = 0
+            self.set_pixel(x, y, new_val)
+          end
+        end
+      end
+    end
+
     ##
     #Tries to repair a broken apng by reordering apng chunks and removing
     #superfluous apng chunks
@@ -1995,7 +2048,6 @@ module Imgrb
         previous_crit_chunk = ""
         chunks.each do
           |ch|
-          @chunks_found << ch.type
           previous_crit_chunk = interpret_chunk(ch, previous_crit_chunk)
         end
         #After the chunks have been interpreted to extract relevant information
@@ -2079,10 +2131,23 @@ module Imgrb
       end
     end
 
+    def check_acceptable_number_of_ancillary_chunk(chunk)
+      chunk_name = chunk.type
+      already_encountered = @chunks_found.include?(chunk_name)
+
+      if ["cHRM", "gAMA", "iCCP", "sBIT", "sRGB", "bKGD", "hIST", "tRNS",
+          "pHYs", "tIME", "acTL"].include?(chunk_name) && already_encountered
+
+        warn "Multiple #{chunk_name} chunks detected, but there should be no more than one!"
+      end
+    end
+
     #In most cases we keep the chunk as an object. A few special cases
     #exist where the chunk object is discarded after the data has been
     #extracted. These cases are: bKGD, tRNS. TODO: Make consistent!
     def interpret_ancillary_chunk(chunk)
+
+      check_acceptable_number_of_ancillary_chunk(chunk)
       #case chunk.type
       # when "tEXt", "zTXt", "iTXt"
       #   @chunks[:texts] << chunk
@@ -2128,7 +2193,12 @@ module Imgrb
           end
           @apng_transparency_palette = chunk
           if @png_image_stream == ""
-            png_trans_palette = chunk.get_data
+            if [0,2,3].index(@header.image_type).nil?
+              warn "tRNS chunk present in png of color type #{@header.image_type}, "\
+                   "but this color type does not support tRNS chunks."
+            end
+
+            png_trans_palette = chunk.get_data #Use get_data(:nonindexed)?
             #If color type is 0 or 2 each sample in the transparency palette
             #is two bytes. One sample for type 0, three samples for type 2.
             if @header.image_type == 0
@@ -2142,7 +2212,6 @@ module Imgrb
             end
 
             @bitmap.transparency_palette = png_trans_palette
-            @has_alpha = true
           else
             warn "tRNS chunk appears after first IDAT chunk. No alpha used."
           end
@@ -2171,6 +2240,7 @@ module Imgrb
       else
         interpret_ancillary_chunk(chunk)
       end
+      @chunks_found << chunk.type
 
       return previous_crit_chunk
     end

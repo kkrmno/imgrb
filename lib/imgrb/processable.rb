@@ -524,8 +524,7 @@ module Imgrb::BitmapModule
         scale = [method, method]
         method = :bilinear
       elsif scale.size == 1
-        scale = [scale[0], method]
-        method = :bilinear
+        scale = [scale[0], scale[0]]
       elsif scale.size != 2
         raise ArgumentError, "wrong number of arguments (given #{scale.size+1}, expected 1..3)"
       end
@@ -816,9 +815,10 @@ module Imgrb::BitmapModule
       if self.channels == 1
         interpolated_image = nearest_neighbor_gray(self, scale_x, scale_y)
       else
-        interpolated_image = self.collect_channels_to_image do |channel_img|
+        interpolated_image_channels = self.each_channel.collect do |channel_img|
           nearest_neighbor_gray(channel_img, scale_x, scale_y)
         end
+        interpolated_image = Imgrb::Image.new(*interpolated_image_channels)
       end
 
       return interpolated_image
@@ -851,9 +851,10 @@ module Imgrb::BitmapModule
       if self.channels == 1
         interpolated_image = bilinear_gray(self, scale_x, scale_y)
       else
-        interpolated_image = self.collect_channels_to_image do |channel_img|
+        interpolated_image_channels = self.each_channel.collect do |channel_img|
           bilinear_gray(channel_img, scale_x, scale_y)
         end
+        interpolated_image = Imgrb::Image.new(*interpolated_image_channels)
       end
 
       return interpolated_image
