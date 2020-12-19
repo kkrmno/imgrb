@@ -13,9 +13,6 @@ class ImgrbTest < Test::Unit::TestCase
   end
 
 
-  #Grayscale no alpha
-  #=============================================================================
-
   def test_load_png_missing_pixel_data
     assert_warn("Image is missing 4 row(s) of pixel data. Padding with zeros.") do
       Imgrb::Image.new("test/broken_test_images/missing_pixel_data.png")

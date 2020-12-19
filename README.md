@@ -1,6 +1,6 @@
 # imgrb
 <a href="https://github.com/kkrmno/imgrb/wiki/Creating-animated-logo"><img src="https://raw.githubusercontent.com/wiki/kkrmno/imgrb/images/imgrb_logo.png" alt="logo" align="right" width="300" /></a>
-[Pure Ruby library](https://github.com/kkrmno/imgrb) for reading and writing png and apng (animated png). Current API may change (not stable). Example usage below. See also [the wiki](https://github.com/kkrmno/imgrb/wiki) for additional examples. Most figures also act as a link to a related wiki entry.
+[Pure Ruby library](https://github.com/kkrmno/imgrb) for reading and writing png and apng (animated png). Current API may change (not stable). Example usage below. See also [the wiki](https://github.com/kkrmno/imgrb/wiki) for additional examples. Most figures also act as a link to a related wiki entry. Also feel free to use the [discussion board](https://github.com/kkrmno/imgrb/discussions).
 ## Description
 This library has full support for reading and writing png and animated png (apng) files. There is also limited support for bmp-files (24-bit color). In the future, gif support may be added. Additionally, there is some support for manipulating image data (e.g. pixel-wise adding/subtracting/multiplying/dividing of images, manipulating specific channels, image filtering, convolutions, mathematical morphology, and image resizing).
 
@@ -140,7 +140,7 @@ floats.
 ### Creating, saving, and reading an animated png (apng)
 In this example we will generate a simple animated png, save it and read it back.
 
-* Simple case:
+#### Simple case:
 Assuming an array of images
 
 ```ruby
@@ -181,7 +181,7 @@ Stepping forward one frame can be done by calling animate_step:
   animation_r.animate_step
 ```
 
-* Complex case:
+#### Complex case:
 In many cases, the file size of the animation can be kept smaller by making use of the blend and dispose operations, as well as the x and y offsets. The following shows such an example:
 
 
@@ -413,6 +413,16 @@ Reading any png with an auDi-chunk will now add a ChunkauDi instance to the anci
   #the chunk type (as a symbol).
   auDi_data_hash = img_with_auDi_chunk.ancillary_chunks[:auDi][0].get_data
 ```
+
+### The eXIf Ancillary Chunk
+Recently (July 2017), the eXIf chunk was added in an extension to the PNG 1.2 specification ("Extensions to the PNG 1.2 Specification, Version 1.5.0"). This chunk, essentially, contains an Exif profile. Reading of this chunk is supported by Imgrb. To get a hash whose keys are the Exif-tags present in the chunk and which contains the associated values you may use
+
+```ruby
+
+  img = Imgrb::Image.new("png_with_eXIf_chunk.png")
+  exif_hash = img.ancillary_chunks[:eXIf][0].get_data
+```
+Writing new eXIf chunks is not currently supported, but is a planned feature.
 
 ### Unknown Chunks
 If a png with an unknown, ancillary chunk is read, an entry will still be added
