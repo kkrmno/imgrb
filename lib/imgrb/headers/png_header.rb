@@ -52,15 +52,13 @@ module Imgrb::Headers
           new_col_type == Imgrb::PngConst::TRUECOLOR_ALPHA)
 
         if bitmap.has_alpha?
-          unless width*4*height == rows.size*rows[0].size
-            raise Imgrb::Exceptions::HeaderError,
-                  "Conversion to #{color_type(new_col_type)} failed"
-          end
+          num_channels = 4
         else
-          unless width*3*height == rows.size*rows[0].size
-            raise Imgrb::Exceptions::HeaderError,
-                  "Conversion to #{color_type(new_col_type)} failed"
-          end
+          num_channels = 3
+        end
+
+        unless width*num_channels*height == rows.size*rows[0].size
+          warn "Unexpected amount of pixel data encountered while depaletting!"
         end
 
         @bit_depth = 8 #Png palette must be 8-bit.

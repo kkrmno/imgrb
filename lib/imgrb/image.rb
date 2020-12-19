@@ -51,7 +51,7 @@ module Imgrb
       #  up loading of multiple images of the same format (i.e. same width,
       #  height, bit depth etc.).
 
-      raise ArgumentError, "Too many arguments (#{options.size} + 1)!" if options.size > 3
+      raise ArgumentError, "Too many arguments (#{options.size + 1})!" if options.size > 3
 
       case img
       when Image
@@ -89,6 +89,11 @@ module Imgrb
         #(format should be width, height, color)
         width_ = img
         height_ = options[0]
+
+        if width_.round != width_ || height_.round != height_
+          raise ArgumentError, "The width and height must be integer!"
+        end
+
         color = Array(options[1])
         if color.size == 1
           @header = Imgrb::Headers::ImgrbHeader.new(width_, height_, 8, Imgrb::PngConst::GRAYSCALE)
@@ -191,8 +196,14 @@ module Imgrb
 
 
       if rows.size > height
-        warn "Image contains superfluous rows of pixel data that have been discarded."
+        warn "Image contains superfluous row(s) of pixel data that have been discarded."
         @bitmap.rows = @bitmap.rows[0...height]
+      elsif rows.size < height && !@only_metadata
+        pad_size = height - rows.size
+        warn "Image is missing #{pad_size} row(s) of pixel data. Padding with zeros."
+        pad_size.times do
+          @bitmap.rows << [0]*channels
+        end
       end
     end
 
