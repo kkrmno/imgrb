@@ -209,7 +209,7 @@ module Imgrb
         @rows = Imgrb::BmpMethods::fix_bmp_reverse_pixel(@rows)
       end
 
-      #Poorly named!
+      #FIXME: Poorly named!
       #Remove header argument, use @image.header in body?
       #Modifies @rows as side-effect.
       def read_png_pixels(header, data)

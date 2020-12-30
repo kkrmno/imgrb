@@ -51,10 +51,10 @@ module Imgrb
       #  up loading of multiple images of the same format (i.e. same width,
       #  height, bit depth etc.).
 
-      raise ArgumentError, "Too many arguments (#{options.size + 1})!" if options.size > 3
 
       case img
       when Image
+        raise ArgumentError, "Too many arguments (#{options.size + 1})! Expected at most 4 channel images." if options.size > 3
         max_channels = img.channels
         c_mode = Imgrb::PngConst::GRAYSCALE
         if options[0].is_a? Image
@@ -87,6 +87,15 @@ module Imgrb
       when Numeric
         #TODO: Raise exception if too many options, e.g. Image.new(10,10,42,...,42,0)
         #(format should be width, height, color)
+
+        if options.size == 0
+          raise ArgumentError, "Expected height and color arguments!"
+        elsif options.size == 1
+          raise ArgumentError, "Missing color argument!"
+        elsif options.size > 2
+          raise ArgumentError, "Provided #{options.size-2} unexpected argument(s) after color!"
+        end
+
         width_ = img
         height_ = options[0]
 
@@ -136,8 +145,7 @@ module Imgrb
       when Hash #Create image from hash
         @header, @bitmap = parse_image_hash(img)
       else
-        raise ArgumentError, "The img argument has to be a string, hash or "\
-                             "array, not #{img.class}."
+        raise ArgumentError, "Unexpected argument type #{img.class}!"
       end
 
       parse_options(options)
@@ -676,12 +684,16 @@ module Imgrb
 
     ##
     #More intuitive method for copying a part of an image (cf. +copy+).
-    #Specify two coordinates, +x0+, +y0+, +x1+, +y1+, that identify the top left
-    #corner and the bottom right corner of the window to be copied.
+    #Specify two coordinates, +x0+, +y0+, +x1+, +y1+, that identify two
+    #diagonally opposite corners of the window to be copied.
     #Returns the copied window as a new image.
-    #NO CHECKING OF BOUNDS!
     def copy_window(x0, y0, x1, y1)
-      #TODO: CHECK BOUNDS
+      x0, x1 = x1, x0 if x1 < x0
+      y0, y1 = y1, y0 if y1 < y0
+
+      if x0 < 0 || x1 >= width || y0 < 0 || y1 >= height
+        raise ArgumentError, "Trying to copy values outside of image!"
+      end
       copy(x0, y0, x1-x0, y1-y0)
     end
 
