@@ -694,7 +694,7 @@ module Imgrb
       if x0 < 0 || x1 >= width || y0 < 0 || y1 >= height
         raise ArgumentError, "Trying to copy values outside of image!"
       end
-      copy(x0, y0, x1-x0, y1-y0)
+      copy(x0, y0, x1-x0+1, y1-y0+1)
     end
 
     ##
@@ -1163,6 +1163,14 @@ module Imgrb
       @ancillary_chunks[:fcTL][frame_nr] = updated_chunk
     end
 
+    ##
+    #Returns the length of time a frame will be displayed in seconds (rational number).
+    #+frame_nr+ can be negative to refer to frames from the end of the sequence.
+    def get_frame_time(frame_nr)
+      fctl_chunk = get_frame_control(frame_nr)
+      return [fctl_chunk.delay_num, fctl_chunk.delay_den]
+    end
+
 
     ##
     #Returns an image object containing the pixels of the specified frame.
@@ -1187,7 +1195,6 @@ module Imgrb
                    delay_num = 1, delay_den = 24,
                    dispose_op = :none, blend_op = :source)
 
-      #TODO: CHECK VALID INPUT ARGUMENTS, E.G. DISPOSE_OP AND BLEND_OP, x_offset, y_offset gives image inside frame, etc.
       #TODO: REFACTOR!
 
       if(img.size[0] > size[0] || img.size[1] > size[1])
@@ -1196,6 +1203,52 @@ module Imgrb
         raise ArgumentError, "Pushed frame has the wrong number of channels: #{img.channels} (expected #{channels})"
       end
       #FIXME: Should also check for paletted images
+
+
+      left_cut_pos = -x_offset
+      if left_cut_pos > 0
+        x_offset = 0
+      else
+        left_cut_pos = 0
+      end
+
+      top_cut_pos = -y_offset
+      if top_cut_pos > 0
+        y_offset = 0
+      else
+        top_cut_pos = 0
+      end
+
+      right_cut_pos = [self.width - x_offset - 1, img.width-1].min
+      bottom_cut_pos = [self.height - y_offset - 1, img.height-1].min
+
+
+      if left_cut_pos == 0 && top_cut_pos == 0 &&
+         right_cut_pos == img.width-1 && bottom_cut_pos == img.height-1
+         #Pass
+      elsif left_cut_pos > right_cut_pos || top_cut_pos > bottom_cut_pos
+        #Fake empty frame by using a fully transparent pixel in the top left.
+        #Only possible if the image has alpha. Otherwise throw an exception.
+        #Could increase the frame delay for this frame instead of adding
+        #subsequent empty frames to save space.
+        #
+        #TODO: Could do the same for images without transparency, for example by
+        #keeping track of changes to the pixel in the top left corner every
+        #time a new frame is pushed and adding a 1x1-pixel frame with blend_op
+        #:source
+        if channels == 2 || channels == 4
+          img = Imgrb::Image.new(1,1,[0]*channels)
+          x_offset = 0
+          y_offset = 0
+          blend_op = :over
+        else
+          raise ArgumentError, "Adding empty frame to animation. Only allowed for images with transparency channel."
+        end
+      else
+        img = img.copy_window(left_cut_pos, top_cut_pos, right_cut_pos, bottom_cut_pos)
+      end
+
+
 
 
       has_actl_chunk = @ancillary_chunks[:acTL].size > 0
@@ -1784,9 +1837,6 @@ module Imgrb
       num_frames = repaired_fctl_chunks.size
       repaired_actl_chunk = [Chunks::ChunkacTL.assemble(num_frames, num_plays)]
 
-      puts repaired_fctl_chunks.size
-      puts repaired_fdat_chunks.size
-
 
       return [repaired_actl_chunk, repaired_fctl_chunks, repaired_fdat_chunks]
 
@@ -1956,18 +2006,52 @@ module Imgrb
     #TODO: Move to ChunkfcTL.assemble ?
     def create_fcTL_chunk_data(seq_num, img, x_offset, y_offset,
                                delay_num, delay_den, dispose_op, blend_op)
+
+      if delay_num > 0xFFFF || delay_num < 0
+        raise ArgumentError, "Delay numerator has to be between 0 and #{0xFFFF}"
+      end
+
+      if delay_den > 0xFFFF || delay_den < 0
+        raise ArgumentError, "Delay denominator has to be between 0 and #{0xFFFF}"
+      end
+
+      if x_offset < 0 || x_offset > 0xFFFFFFFF
+        raise ArgumentError, "x_offset has to be between 0 and #{0xFFFFFFFF}"
+      end
+
+      if y_offset < 0 || y_offset > 0xFFFFFFFF
+        raise ArgumentError, "y_offset has to be between 0 and #{0xFFFFFFFF}"
+      end
+
+      raise ArgumentError, "x_offset has to be positive" if x_offset < 0
+      raise ArgumentError, "y_offset has to be positive" if y_offset < 0
+      if x_offset + img.width > self.width || y_offset + img.height > self.height
+        raise ArgumentError, "Part of the image ends up outside the default region"
+      end
+
+      #delay_den = 0 is allowed according to the specification and the effect
+      #is equal to using delay_den = 100
+
       data_4byte = [seq_num, img.width, img.height, x_offset, y_offset].pack("N*")
       data_2byte = [delay_num, delay_den].pack("n*")
 
-      dispose_op_byte = 0 #:none
-      if dispose_op == :background
+      if dispose_op == :none
+        dispose_op_byte = 0
+      elsif dispose_op == :background
         dispose_op_byte = 1
       elsif dispose_op == :previous
         dispose_op_byte = 2
+      else
+        raise ArgumentError, "Unkown dispose operation: #{dispose_op}"
       end
 
-      blend_op_byte = 0 #source
-      blend_op_byte = 1 if blend_op == :over
+      if blend_op == :source
+        blend_op_byte = 0
+      elsif blend_op == :over
+        blend_op_byte = 1
+      else
+        raise ArgumentError, "Unkown blend operation: #{blend_op}"
+      end
 
       data_1byte = [dispose_op_byte, blend_op_byte].pack("C*")
 
