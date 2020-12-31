@@ -1140,6 +1140,9 @@ module Imgrb
     #As a side effect, this method sorts the fcTL chunks according to their
     #sequence number (normally these should be sorted regardless)
     def get_frame_control(frame_nr = @current_frame)
+      if frame_nr.abs >= animation_length
+        raise IndexError, "index #{frame_nr} outside of animation bounds: #{-animation_length}...#{animation_length}"
+      end
       @ancillary_chunks[:fcTL].sort_by!{|chunk| chunk.sequence_number}
       @ancillary_chunks[:fcTL][frame_nr]
     end
@@ -1171,12 +1174,48 @@ module Imgrb
       return [fctl_chunk.delay_num, fctl_chunk.delay_den]
     end
 
+    ##
+    #Returns the frame offset in x and y direction.
+    #+frame_nr+ can be negative to refer to frames from the end of the sequence.
+    def get_frame_offset(frame_nr)
+      fctl_chunk = get_frame_control(frame_nr)
+      return [fctl_chunk.x_offset, fctl_chunk.y_offset]
+    end
+
+    ##
+    #Changes the frame offset in x and y direction
+    #+frame_nr+ can be negative to refer to frames from the end of the sequence.
+    def set_frame_offset(frame_nr, x_offset, y_offset)
+      if frame_nr == 0
+        raise ArgumentError, "X- and Y-offset cannot be changed for the first frame"
+      end
+
+      chunk_to_update = get_frame_control(frame_nr)
+
+      if x_offset < 0 || x_offset + chunk_to_update.width > self.width ||
+         y_offset < 0 || y_offset + chunk_to_update.height > self.height
+         raise ArgumentError, "Invalid offset: frame data out of bounds"
+      end
+
+      is_default_image = chunk_to_update.pos == :after_IHDR
+      updated_chunk = Chunks::ChunkfcTL.assemble(is_default_image,
+                                                 chunk_to_update.sequence_number,
+                                                 chunk_to_update.width,
+                                                 chunk_to_update.height,
+                                                 x_offset,
+                                                 y_offset,
+                                                 chunk_to_update.delay_num,
+                                                 chunk_to_update.delay_den,
+                                                 chunk_to_update.dispose_op,
+                                                 chunk_to_update.blend_op)
+      @ancillary_chunks[:fcTL][frame_nr] = updated_chunk
+    end
 
     ##
     #Returns an image object containing the pixels of the specified frame.
     #If no parameter is given, returns the pixel data for the current frame.
     #Does not carry over any metadata.
-    #If it is desirable to obtain a sequence of frames, it is faster go to the
+    #If it is desirable to obtain a sequence of frames, it is faster to go to the
     #initial frame of interest using +jump_to_frame+ and then using +get_frame+
     #followed by +animate_step+ iteratively until all frames of interest have
     #been extracted.
