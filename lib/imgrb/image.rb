@@ -724,6 +724,7 @@ module Imgrb
     #Alpha blends this image over the +background_image+ and returns a new
     #Image object resulting from the blend
     def alpha_over(background_image)
+      #TODO: Handle gamma correctly!
       background_image_copy = background_image.copy
       background_image_copy.alpha_under(self)
     end
@@ -739,10 +740,12 @@ module Imgrb
     #Use alpha_over if alpha blend should create a copy
     def alpha_under(foreground_image)
       #TODO: Refactor!
-      #Add checks for alpha channel and matching number of channels!
+      #TODO: Handle gamma correctly!
+      #TODO: Add checks for alpha channel and matching number of channels!
 
       h = foreground_image.height
       w = foreground_image.width
+      alpha_channel = channels-1
 
       h.times do
         |row|
@@ -750,7 +753,7 @@ module Imgrb
         w.times do
           |col|
 
-          fg_alpha = foreground_image.get_pixel(col, row, channels-1)
+          fg_alpha = foreground_image.get_pixel(col, row, alpha_channel)
           if fg_alpha == 0
             next
           elsif fg_alpha == 255
@@ -760,7 +763,7 @@ module Imgrb
             fg_pixel = foreground_image[row, col]
             bg_pixel = self[row, col]
 
-            if channels == 4
+            if alpha_channel == 3
               bg_rc = bg_pixel[0]
               bg_gc = bg_pixel[1]
               bg_bc = bg_pixel[2]
@@ -772,22 +775,33 @@ module Imgrb
               fg_ac = fg_pixel[3]/255.0
 
 
-              r = fg_rc * fg_ac + bg_rc * bg_ac * (1 - fg_ac)
-              g = fg_gc * fg_ac + bg_gc * bg_ac * (1 - fg_ac)
-              b = fg_bc * fg_ac + bg_bc * bg_ac * (1 - fg_ac)
-              a = (fg_ac + bg_ac * (1 - fg_ac))*255.0
+              a = (fg_ac + bg_ac * (1 - fg_ac))
+              if a == 0 #Redundant?
+                r = 0
+                g = 0
+                b = 0
+              else
+                r = (fg_rc * fg_ac + bg_rc * bg_ac * (1 - fg_ac))/a
+                g = (fg_gc * fg_ac + bg_gc * bg_ac * (1 - fg_ac))/a
+                b = (fg_bc * fg_ac + bg_bc * bg_ac * (1 - fg_ac))/a
+              end
 
-              self[row, col] = [r.to_i, g.to_i, b.to_i, a.to_i]
-            elsif channels == 2
+
+              self[row, col] = [r.to_i, g.to_i, b.to_i, (a*255).to_i]
+            elsif alpha_channel == 1
               bg_gray = bg_pixel[0]
               bg_ac = bg_pixel[1]/255.0
               fg_gray = fg_pixel[0]
               fg_ac = fg_pixel[1]/255.0
 
-              gray = fg_gray * fg_ac + bg_gray * bg_ac * (1 - fg_ac)
-              alpha = (fg_ac + bg_ac * (1 - fg_ac))*255.0
+              alpha = (fg_ac + bg_ac * (1 - fg_ac))
+              if alpha == 0 #Redundant?
+                gray = 0
+              else
+                gray = (fg_gray * fg_ac + bg_gray * bg_ac * (1 - fg_ac))/alpha
+              end
 
-              self[row, col] = [gray.to_i, alpha.to_i]
+              self[row, col] = [gray.to_i, (alpha*255).to_i]
             else
               raise ArgumentError, "No alpha channel for alpha blending found."
             end

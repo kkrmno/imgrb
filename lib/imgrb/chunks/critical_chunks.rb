@@ -87,7 +87,8 @@ module Imgrb
 
 
 
-
+    #Instances of this class represent CgBI chunks. Files containing this are
+    #probably not valid png file, but a proprietary, png-like image format.
     class ChunkCgBI
       include AbstractChunk, Critical, Private
 
