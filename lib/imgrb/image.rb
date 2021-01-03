@@ -177,7 +177,7 @@ module Imgrb
       @animation_frames_cached = false
 
       #Needs testing for indexed apng images!
-      if potential_apng?
+      if !@only_metadata && potential_apng?
         valid_apng = check_valid_apng
         if !valid_apng
           warn "Invalid apng. Attempting to repair..."
@@ -233,16 +233,21 @@ module Imgrb
     end
 
     ##
-    #Returns length of animation in seconds
+    #Returns length of animation in seconds. Returns nil for static images.
     def animation_time
-      raise Exceptions::AnimationError, "a static image does not have an animation time" unless animated?
-      time = 0
-      @ancillary_chunks[:fcTL].each do |frame_control|
-        frame_time = Rational(frame_control.delay_num , frame_control.delay_den)
-        time += frame_time
+      #raise Exceptions::AnimationError, "a static image does not have an animation time" unless animated?
+      if @ancillary_chunks[:fcTL].size == 0
+        time = nil
+      else
+        time = 0
+        @ancillary_chunks[:fcTL].each do |frame_control|
+          frame_time = Rational(frame_control.delay_num , frame_control.delay_den)
+          time += frame_time
+        end
+        time = time.to_f
       end
 
-      return time.to_f
+      return time
     end
 
     ##
@@ -936,7 +941,9 @@ module Imgrb
     #Sets channel +c+ to +new_channel+. The new channel is either
     #* a single channel image
     #* an array of arrays (rows)
+    #* a single number (which will be used for all values of the channel)
     def set_channel(c, new_channel)
+      new_channel = Imgrb::Image.new(width, height, 1)*new_channel if new_channel.is_a? Numeric
       new_channel = new_channel.rows if new_channel.is_a? Image
       if new_channel.size != height || new_channel[0].size != width
         raise ArgumentError, "Wrong size of new channel."
@@ -1629,6 +1636,13 @@ module Imgrb
       return sblob
     end
 
+    ##
+    #Remove?
+    #
+    #Returns a flat array of values (skipping alpha channel).
+    #
+    #Problems with grayscale!
+    #Remove in favor of rows and get_channel (add get_channels)?
     def to_blob_without_alpha(x = 0, y = 0, w = -1, h = -1)
       return to_blob(x, y, w, h) unless has_alpha?
       to_blob(x, y, w, h).collect.with_index do
@@ -1666,9 +1680,14 @@ module Imgrb
         puts "IMPORTANT COLORS: " + @header.important_colors.to_s
         puts "+OTHER+"
         puts "PADDING: #{(BmpMethods::find_multiple_of_4(width*3)-width*3)}"
-      elsif @header.image_format == :png
-        puts "+PNG HEADER+"
-        puts "FORMAT: PNG"
+      elsif @header.image_format == :png || @header.image_format == :apng
+        if !potential_apng? #Because only metadata is read, may not be valid apng
+          puts "+PNG HEADER+"
+          puts "FORMAT: PNG"
+        else
+          puts "+APNG (ANIMATED PNG) HEADER"
+          puts "FORMAT: APNG"
+        end
         puts "WIDTH: " + width.to_s
         puts "HEIGHT: " + height.to_s
         puts "BIT DEPTH: " + @header.bit_depth.to_s
@@ -1684,6 +1703,9 @@ module Imgrb
         end
         puts "+OTHER+"
         puts "COMPUTED FILE SIZE: " + @header.to_bmp_header.file_size.to_s
+        if potential_apng?
+          puts "ANIMATION LENGTH: #{animation_time}s (#{animation_length} frames)"
+        end
         # if @chunks[:texts].length > 0
         #   puts
         #   puts "------------------------------------------"
@@ -1848,35 +1870,36 @@ module Imgrb
         return [repaired_actl_chunk, repaired_fctl_chunks, repaired_fdat_chunks]
       end
 
-      if apng_order_dependent_chunks[0].type == apng_order_dependent_chunks[1].type &&
+      if apng_order_dependent_chunks[0].type == apng_order_dependent_chunks[1].type
+        #If both first and second chunk are fcTL, then first chunk must appear before the IDAT chunks
         apng_order_dependent_chunks[0] = Chunks::ChunkfcTL.new(apng_order_dependent_chunks[0].data, :after_IHDR)
-        expecting_fctl = true
+        fctl_allowed = true
       else
-        expecting_fctl = false
+        fctl_allowed = false
       end
 
       repaired_fctl_chunks << apng_order_dependent_chunks[0]
 
       apng_order_dependent_chunks[1..-1].each do |apng_chunk|
 
-        if !expecting_fctl && apng_chunk.type == "fcTL"
+        if !fctl_allowed && apng_chunk.type == "fcTL"
           warn "Discarding some corrupt frame data in order to salvage apng."
           repaired_fctl_chunks = repaired_fctl_chunks[0..-2]
           break
         end
 
-        if expecting_fctl && apng_chunk.type == "fdAT"
-          warn "Discarding some corrupt frame data in order to salvage apng."
-          break
-        end
+        # if expecting_fctl && apng_chunk.type == "fdAT"
+        #   warn "Discarding some corrupt frame data in order to salvage apng."
+        #   break
+        # end
 
 
-
-        expecting_fctl = !expecting_fctl
 
         if apng_chunk.type == "fcTL"
+          fctl_allowed = false
           repaired_fctl_chunks << apng_chunk
         else
+          fctl_allowed = true
           repaired_fdat_chunks << apng_chunk
         end
       end
@@ -1903,22 +1926,27 @@ module Imgrb
                          fctl_chunks = @ancillary_chunks[:fcTL],
                          fdat_chunks = @ancillary_chunks[:fdAT])
 
-
       if fctl_chunks.size == 0
-        valid = false
-        warn "No frame control chunk found!"
-        return valid
+       warn "No frame control chunk found!"
+       return false
+      elsif actl_chunk.size == 0
+       warn "No acTL chunk found!"
+       return false
+      elsif fdat_chunks.size == 0
+       warn "No fdAT chunk found!"
+       return false
       end
 
-      valid = fctl_chunks[0].sequence_number == 0
-      if !valid
+
+      valid = true
+
+      if fctl_chunks[0].sequence_number != 0
+        valid = false
         warn "First frame control chunk should have sequence number 0, not #{fctl_chunks[0].sequence_number}"
       end
 
-      if actl_chunk.size == 0
-        valid = false
-        warn "Missing apng actl chunk"
-      elsif actl_chunk.size > 1
+
+      if actl_chunk.size > 1
         valid = false
         warn "Multiple apng actl chunks detected"
       elsif actl_chunk[0].pos != :after_IHDR && actl_chunk[0].pos != :after_PLTE
@@ -1930,39 +1958,31 @@ module Imgrb
       if fctl_chunks[0].pos == :after_IHDR || fctl_chunks[0].pos == :after_PLTE
         sequence_check_start = 1
         fctl_chunks = fctl_chunks[1..-1]
+        last_chunk_type = "fcTL"
       else
         sequence_check_start = 0
+        last_chunk_type = ""
       end
 
-      if fctl_chunks.size > fdat_chunks.size
-        warn "Superfluous apng frame control chunk detected."
-        valid = false
-      elsif fctl_chunks.size < fdat_chunks.size
-        warn "Superfluous apng frame data chunk detected."
-        valid = false
-      end
+
       apng_order_dependent_chunks = fctl_chunks.zip(fdat_chunks).flatten
 
       expected_sequence_number = sequence_check_start
-      expected_chunk_type = "fcTL"
-      apng_order_dependent_chunks.each do |apng_chunk|
 
-        next if apng_chunk.nil? #Happens if missing fdat chunks
-
-        if apng_chunk.sequence_number != expected_sequence_number
-          valid = false
-          warn "Broken sequence for apng chunks. Expected #{expected_sequence_number}, but found #{apng_chunk.sequence_number}"
+      apng_order_dependent_chunks.each do |chunk|
+        next if chunk.nil?
+        if chunk.sequence_number == expected_sequence_number
+          expected_sequence_number += 1
         else
-          #Only check if two fdAT/fcTL in a row if the sequence order is correct
-          if apng_chunk.type != expected_chunk_type
-            valid = false
-            warn "Unexpectedly encountered doubled #{apng_chunk.type} apng chunks in sequence!"
-          end
+          warn "Broken sequence for apng chunks. Expected #{expected_sequence_number}, but found #{chunk.sequence_number}"
+          valid = false
         end
+        last_chunk_type = chunk.type
+      end
 
-        expected_sequence_number += 1
-        expected_chunk_type = expected_chunk_type == "fcTL" ? "fdAT" : "fcTL"
-
+      if last_chunk_type == "fcTL"
+        valid = false
+        warn "Superfluous apng frame control chunk detected."
       end
 
       return valid
