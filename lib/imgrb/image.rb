@@ -1039,6 +1039,37 @@ module Imgrb
     end
 
     ##
+    #Sets a palette. Should only be used for images with a single channel.
+    #The palette is an array with the following format:
+    #* [r_col0, g_col0, b_col0, r_col1, g_col1, b_col1, ...]
+    #* The array length must be divisible by three
+    #* The array must contain at least three elements.
+    #where each set of three elements defines the color for its corresponding
+    #index (e.g. r_col0 is the amount of red for palette color 0)
+    #Careful! There is currently no checking that the number of palette entries
+    #matches the number of index values in the image. Thus there may be values
+    #pointing outside of the palette entries if you supply an array that is too
+    #short.
+    def set_palette(palette)
+      if channels != 1
+        raise Imgrb::Exceptions::ImageError, "Trying to set a palette for an "\
+                                            "image with more than one channel"
+      elsif palette.size < 3
+        raise Imgrb::Exceptions::ImageError, "Too few palette values."
+      elsif !(palette.size % 3).zero?
+        raise Imgrb::Exceptions::ImageError, "Number of palette entries "\
+                                    "(#{palette.size}) must be a multiple of 3"
+      elsif palette.size > 3*2**@header.bit_depth
+        raise Imgrb::Exceptions::ImageError, "Too many palette values "\
+              "(#{palette.size}). At most (#{3*2**@header.bit_depth}) allowed"
+      end
+      @bitmap.palette = palette
+      @header = @header.to_png_header
+      @header.to_color_type(Imgrb::PngConst::INDEXED, @bitmap)
+    end
+
+
+    ##
     #Depalettes an indexed image
     def depalette
       if !@only_metadata

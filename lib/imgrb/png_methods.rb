@@ -616,7 +616,7 @@ module Imgrb
     def self.palette(img)
       has_alpha = img.has_alpha?
       palette_hash = Hash.new
-      paletted_image = []
+      paletted_array = []
       bytes_per_color = 3
       bytes_per_color += 1 if has_alpha
       catch(:max_exceeded) do
@@ -630,15 +630,15 @@ module Imgrb
             unless palette_hash.has_key? pxl
               palette_hash[pxl] = palette_hash.size
             end
-            paletted_image << palette_hash[pxl]
+            paletted_array << palette_hash[pxl]
           end
         end
       end
       if palette_hash.size > 256
         palette_hash = Hash.new
-        paletted_image = []
+        paletted_array = []
       end
-      return [palette_hash.keys.flatten, paletted_image]
+      return [palette_hash.keys.flatten, paletted_array]
     end
 
     ##
@@ -657,11 +657,11 @@ module Imgrb
       palette = []
 
       if palettable?(img, samples)
-        palette, paletted_image = palette(img)
+        palette, paletted_array = palette(img)
       end
       if palette.size > 0 && palette.size <= 256*3
         save_png_paletted(img, header, file, compression_level,
-                          palette, paletted_image, skip_ancillary)
+                          palette, paletted_array, skip_ancillary)
         return true
       else
         return false
@@ -1094,22 +1094,28 @@ module Imgrb
     #Saves img as a png
     def self.save_png(img, header, file, compression_level, skip_ancillary)
 
-      png_arr = generate_png(img, header, compression_level, skip_ancillary)
+      if header.paletted?
+        save_png_paletted(img, header, file, compression_level,
+                          img.bitmap.palette, img.rows.flatten, skip_ancillary)
+      else
 
-      file << png_arr[0] #Store PNG signature
-      file << png_arr[1] #Store IHDR chunk
-      file << png_arr[2] #Store ancillary chunks after IHDR
-      file << png_arr[3] #Store PLTE chunk
-      file << png_arr[4] #Store bKGD chunk (has to be after PLTE)
-      file << png_arr[5] #Store ancillary chunks after PLTE
-      file << png_arr[6] #Store image data in a single IDAT chunk
-      file << png_arr[7] #Ancillary chunks after IDAT chunk
-      file << png_arr[8] #Add IEND chunk with CRC
+        png_arr = generate_png(img, header, compression_level, skip_ancillary)
+
+        file << png_arr[0] #Store PNG signature
+        file << png_arr[1] #Store IHDR chunk
+        file << png_arr[2] #Store ancillary chunks after IHDR
+        file << png_arr[3] #Store PLTE chunk
+        file << png_arr[4] #Store bKGD chunk (has to be after PLTE)
+        file << png_arr[5] #Store ancillary chunks after PLTE
+        file << png_arr[6] #Store image data in a single IDAT chunk
+        file << png_arr[7] #Ancillary chunks after IDAT chunk
+        file << png_arr[8] #Add IEND chunk with CRC
+      end
     end
 
     #Private
     def self.save_png_paletted(img, header, file, compression_level,
-                               palette, paletted_image, skip_ancillary)
+                               palette, paletted_array, skip_ancillary)
       png_image = PngConst::PNG_START #PNG signature
 
       if skip_ancillary
@@ -1132,7 +1138,7 @@ module Imgrb
       png_image << get_background_bytes(img, header)
 
       #Calculate filters and filter the image.
-      rows = paletted_image.each_slice(img.width).to_a
+      rows = paletted_array.each_slice(img.width).to_a
       filters, filtered_image = filter_for_compression(rows,
                                                        compression_level, 1)
 

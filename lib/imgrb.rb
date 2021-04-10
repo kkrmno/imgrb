@@ -72,6 +72,7 @@ end
 require 'zlib'
 
 require 'imgrb/bitmap'
+require 'imgrb/palettes'
 require 'imgrb/processable'
 require 'imgrb/exceptions'
 #require 'imgrb/misc'
